@@ -45,7 +45,7 @@ input[type=range]{width:84px;accent-color:#e0262f}
 <label>Throttle<input id="th" type="range" min="0" max="1" step=".01" value=".7"></label></div>
 <div class="row"><button data-v="hero" class="on">Hero</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="valley">Valley</button><button data-v="cyl">Cyl</button>
 <button data-m="glass" class="on">Glass</button><button data-m="section">Section</button><button data-m="solid">Solid</button>
-<button id="chg" class="red on">Charge</button><button id="iso">Isolate</button><button id="pnl" class="on">Panels</button></div>
+<button id=""chg" class="red on">Charge</button><button id="iso">Isolate</button><button id="pnl" class="on">Panels</button></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -72,44 +72,38 @@ document.getElementById('chk').textContent=`${(8*M.Vd/1e6).toFixed(2)} L · CR $
 
 /* ===== SCENE ===== */
 const U=.01,cv=document.getElementById('gl');
-let R=null, scene=null, cam=null, webglOK=false;
+// Ensure canvas has size before WebGL context creation (helps some GPUs / mobile)
+cv.width = innerWidth; cv.height = innerHeight;
+let R, scene, cam, webglOK = false;
 try {
-  // Ensure canvas has size before context creation (helps some GPUs)
-  cv.width = cv.clientWidth || innerWidth;
-  cv.height = cv.clientHeight || innerHeight;
   R = new THREE.WebGLRenderer({
     canvas: cv,
     antialias: true,
     alpha: false,
     powerPreference: 'high-performance',
-    failIfMajorPerformanceCaveat: false,
-    preserveDrawingBuffer: false
+    failIfMajorPerformanceCaveat: false
   });
-  R.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  R.setSize(innerWidth, innerHeight, false);
+  R.setPixelRatio(Math.min(devicePixelRatio, 2));
   R.shadowMap.enabled = true;
   R.shadowMap.type = THREE.PCFSoftShadowMap;
   R.localClippingEnabled = true;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeceef1);
-  cam = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, .1, 200);
+  cam = new THREE.PerspectiveCamera(38, 1, .1, 200);
   webglOK = true;
 } catch (err) {
   console.error('WebGL init failed:', err);
+  cv.style.display = 'none';
   const msg = document.createElement('div');
-  msg.id = 'webgl-fail';
-  msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#eceef1;color:#15181d;font:14px/1.5 system-ui;text-align:center;padding:24px;z-index:5;pointer-events:none';
-  msg.innerHTML = '<div style="font-size:18px;font-weight:700;margin-bottom:8px">3D view unavailable</div><div style="max-width:380px;color:#6b7482">WebGL could not start on this browser/device.<br>Turn on hardware acceleration, update GPU drivers, or try Chrome / Edge.</div>';
+  msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#eceef1;color:#15181d;font:14px/1.5 system-ui;text-align:center;padding:24px;z-index:5';
+  msg.innerHTML = '<div style="font-size:18px;font-weight:700;margin-bottom:8px">WebGL unavailable</div><div style="max-width:360px;color:#6b7482">This browser or device could not create a WebGL context.<br>Enable hardware acceleration (chrome://settings/system) or try Chrome / Edge / Firefox.</div>';
   document.body.appendChild(msg);
 }
-
-// Stubs so the rest of the script never throws when WebGL is missing
+// Stubs so the rest of the script does not throw if WebGL failed
 if (!webglOK) {
-  const noop = ()=>{};
-  const meshStub = { position:{set:noop,y:0}, rotation:{z:0}, scale:{set:noop,y:1}, visible:true, material:{emissive:{setHex:noop}, color:{setHex:noop}, opacity:1, emissiveIntensity:0}, castShadow:false };
-  scene = { add:noop, traverse:noop, background:null };
-  cam = { position:{set:noop}, lookAt:noop, aspect:1, updateProjectionMatrix:noop };
-  R = { setSize:noop, render:noop, shadowMap:{}, localClippingEnabled:false };
+  scene = { add(){}, background: null, traverse(){} };
+  cam = { position: { set(){} }, lookAt(){}, aspect: 1, updateProjectionMatrix(){} };
+  R = { setSize(){}, render(){}, shadowMap: {}, localClippingEnabled: false };
 }
 scene.add(new THREE.HemisphereLight(0xffffff,0x9aa3b0,.95));
 const dl=new THREE.DirectionalLight(0xffffff,.85);dl.position.set(5,12,7);dl.castShadow=true;dl.shadow.mapSize.set(2048,2048);Object.assign(dl.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:40});dl.shadow.bias=-.0004;scene.add(dl);
@@ -160,7 +154,7 @@ scene.traverse(o=>{if(o.isMesh&&o!==fl)o.castShadow=true});
 /* camera */
 let az=.8,el=.35,dist=13,tgt=new THREE.Vector3(0,.4,0);
 const VIEWS={hero:[.8,.35,13],front:[0,0,13],side:[Math.PI/2,0,13],valley:[.35,1.0,11]};
-function placeCam(){if(!webglOK)return;cam.position.set(tgt.x+dist*Math.cos(el)*Math.sin(az),tgt.y+dist*Math.sin(el),tgt.z+dist*Math.cos(el)*Math.cos(az));cam.lookAt(tgt)}
+function placeCam(){cam.position.set(tgt.x+dist*Math.cos(el)*Math.sin(az),tgt.y+dist*Math.sin(el),tgt.z+dist*Math.cos(el)*Math.cos(az));cam.lookAt(tgt)}
 const $=id=>document.getElementById(id),q=s=>[...document.querySelectorAll(s)];
 function view(v){q('[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(v==='cyl'){const c=CY[track];tgt.set(Math.sin(c.beta)*1.6,Math.cos(c.beta)*1.6,c.z);az=.6;el=.15;dist=5.5}else{tgt.set(0,.4,0);[az,el,dist]=VIEWS[v];if(innerWidth<innerHeight)dist*=1.35}placeCam()}
 q('[data-v]').forEach(b=>b.onclick=()=>view(b.dataset.v));
@@ -172,22 +166,13 @@ else{const r=[...pts.entries()].find(([i])=>i!==e.pointerId)[1],d0=Math.hypot(o[
 pts.set(e.pointerId,[e.clientX,e.clientY]);placeCam()});
 ['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,e=>pts.delete(e.pointerId)));
 cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(3,Math.min(30,dist*(1+e.deltaY*.001)));placeCam()},{passive:false});
-function resize(){if(webglOK){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();placeCam()}}
+function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();placeCam()}
 addEventListener('resize',resize);
 /* UI state */
 let track=0,th=0,run=true,thr=.7,curve=[];
 const chips=$('chips');ORDER.forEach(n=>{const b=document.createElement('button');b.textContent=n;b.dataset.n=n;b.onclick=()=>{track=n-1;sel();if(iso)isolate()};chips.appendChild(b)});
 const sel=()=>{[...chips.children].forEach(b=>b.classList.toggle('on',+b.dataset.n===track+1));$('trk').textContent='Cylinder '+(track+1)+' · '+((track+1)%2?'right':'left')+' bank'};sel();
-function buildCurve(){
-  curve = [];
-  var ph = 0;
-  while (ph <= 720) {
-    var a = (ph % 360) * D;
-    curve.push([xOf(a), pOf(ph, xOf(a), thr), ph]);
-    ph += 4;
-  }
-}
-buildCurve();
+function buildCurve(){curve=[];for(let ph=0;ph<=720;ph+=4){const a=(ph%360)*D;curve.push([xOf(a),pOf(ph,xOf(a),thr),ph])}}buildCurve();
 $('th').oninput=e=>{thr=+e.target.value;buildCurve()};$('pb').oninput=e=>$('pbv').textContent=e.target.value;
 const setRun=r=>{run=r;$('pz').textContent=run?'Pause':'Play';$('pz').classList.toggle('on',run)};$('pz').onclick=()=>setRun(!run);
 $('m15').onclick=()=>{setRun(false);th=mod(th-15,720)};$('p15').onclick=()=>{setRun(false);th=mod(th+15,720)};
