@@ -373,22 +373,30 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; ground.receiveShadow = true;
 scene.add(ground);
 
+// Materials — tuned for realism
 const mat = {
   block:  new THREE.MeshStandardMaterial({ color: 0x1c2230, roughness: 0.32, metalness: 0.84 }),
-  piston: new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.16, metalness: 0.7 }),
-  rod:    new THREE.MeshStandardMaterial({ color: 0x2a3140, roughness: 0.22, metalness: 0.9 }),
+  piston: new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.22, metalness: 0.55 }),
+  pistonTop: new THREE.MeshStandardMaterial({ color: 0xe8eaee, roughness: 0.18, metalness: 0.6 }),
+  ring:   new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.35, metalness: 0.85 }),
+  rod:    new THREE.MeshStandardMaterial({ color: 0x2a3140, roughness: 0.18, metalness: 0.92 }),
+  rodCap: new THREE.MeshStandardMaterial({ color: 0x1e2532, roughness: 0.2, metalness: 0.9 }),
   crank:  new THREE.MeshStandardMaterial({ color: 0x1e2532, roughness: 0.16, metalness: 0.94 }),
   valve:  new THREE.MeshStandardMaterial({ color: 0xb0b8c4, roughness: 0.14, metalness: 0.9 }),
   glass:  new THREE.MeshPhysicalMaterial({
-    color: 0x88c8ff, transparent: true, opacity: 0.14, roughness: 0.03, metalness: 0.02,
-    transmission: 0.85, thickness: 0.3, side: THREE.DoubleSide, ior: 1.45,
+    color: 0xa8d4f0, transparent: true, opacity: 0.12, roughness: 0.02, metalness: 0.0,
+    transmission: 0.92, thickness: 0.4, side: THREE.DoubleSide, ior: 1.5,
+    specularIntensity: 0.8,
   }),
+  linerMetal: new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.3, metalness: 0.8 }),
   section: new THREE.MeshStandardMaterial({ color: 0x2a3344, roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide }),
   accent: new THREE.MeshStandardMaterial({
     color: 0xe11d48, roughness: 0.25, metalness: 0.45, emissive: 0x9f1239, emissiveIntensity: 0.12,
   }),
   dark:   new THREE.MeshStandardMaterial({ color: 0x12161e, roughness: 0.42, metalness: 0.55 }),
   fly:    new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.26, metalness: 0.88 }),
+  arrow:  new THREE.MeshBasicMaterial({ color: 0xe11d48 }),
+  glow:   new THREE.MeshStandardMaterial({ color: 0xff6b35, emissive: 0xff4400, emissiveIntensity: 0.6, transparent: true, opacity: 0.35 }),
 };
 
 function C(rt, rb, h, m, s = 28) {
@@ -398,6 +406,101 @@ function C(rt, rb, h, m, s = 28) {
 function B(w, h, d, m) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
   mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+}
+
+// Realistic piston assembly
+function createPiston() {
+  const g = new THREE.Group();
+  // Crown (slightly domed)
+  const crown = new THREE.Mesh(
+    new THREE.SphereGeometry(0.29, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.35),
+    mat.pistonTop
+  );
+  crown.position.y = 0.08;
+  crown.castShadow = true;
+  g.add(crown);
+  // Flat land under crown
+  const land = C(0.295, 0.295, 0.018, mat.piston, 28);
+  land.position.y = 0.055;
+  g.add(land);
+  // Compression ring 1
+  const r1 = C(0.302, 0.302, 0.014, mat.ring, 28);
+  r1.position.y = 0.035;
+  g.add(r1);
+  // Groove separator
+  const sep1 = C(0.288, 0.288, 0.01, mat.piston, 24);
+  sep1.position.y = 0.022;
+  g.add(sep1);
+  // Compression ring 2
+  const r2 = C(0.302, 0.302, 0.014, mat.ring, 28);
+  r2.position.y = 0.008;
+  g.add(r2);
+  // Oil ring
+  const oil = C(0.300, 0.300, 0.018, mat.dark, 24);
+  oil.position.y = -0.012;
+  g.add(oil);
+  // Skirt (slightly tapered)
+  const skirt = C(0.295, 0.288, 0.14, mat.piston, 28);
+  skirt.position.y = -0.095;
+  g.add(skirt);
+  // Wrist pin bosses
+  const bossL = C(0.04, 0.04, 0.06, mat.piston, 12);
+  bossL.rotation.x = Math.PI / 2;
+  bossL.position.set(0, -0.06, 0.1);
+  g.add(bossL);
+  const bossR = bossL.clone();
+  bossR.position.z = -0.1;
+  g.add(bossR);
+  // Wrist pin
+  const pin = C(0.028, 0.028, 0.34, mat.crank, 12);
+  pin.rotation.x = Math.PI / 2;
+  pin.position.y = -0.06;
+  g.add(pin);
+  // Pin circlips
+  const clip1 = C(0.032, 0.032, 0.008, mat.dark, 10);
+  clip1.rotation.x = Math.PI / 2;
+  clip1.position.set(0, -0.06, 0.155);
+  g.add(clip1);
+  const clip2 = clip1.clone();
+  clip2.position.z = -0.155;
+  g.add(clip2);
+  return g;
+}
+
+// I-beam connecting rod
+function createRod(len) {
+  const g = new THREE.Group();
+  const beamH = len * 0.78;
+  // I-beam web
+  const web = B(0.022, beamH, 0.055, mat.rod);
+  g.add(web);
+  // I-beam flanges
+  const fl1 = B(0.07, beamH, 0.016, mat.rod);
+  fl1.position.z = 0.028;
+  g.add(fl1);
+  const fl2 = B(0.07, beamH, 0.016, mat.rod);
+  fl2.position.z = -0.028;
+  g.add(fl2);
+  // Small end
+  const smallEnd = C(0.048, 0.048, 0.095, mat.rod, 16);
+  smallEnd.rotation.x = Math.PI / 2;
+  smallEnd.position.y = len / 2 * 0.92;
+  g.add(smallEnd);
+  // Big end
+  const bigEnd = C(0.095, 0.095, 0.12, mat.rod, 18);
+  bigEnd.rotation.x = Math.PI / 2;
+  bigEnd.position.y = -len / 2 * 0.92;
+  g.add(bigEnd);
+  // Cap bolts
+  for (const side of [-1, 1]) {
+    const bolt = C(0.012, 0.012, 0.04, mat.dark, 8);
+    bolt.position.set(side * 0.055, -len / 2 * 0.92, 0);
+    g.add(bolt);
+    const nut = C(0.018, 0.018, 0.01, mat.rodCap, 6);
+    nut.position.set(side * 0.055, -len / 2 * 0.92 - 0.025, 0);
+    g.add(nut);
+  }
+  return g;
 }
 
 const engine = new THREE.Group();
@@ -433,37 +536,31 @@ for (let i = 0; i < 8; i++) {
   bankG.add(outer);
   blockOuters.push(outer);
 
-  const liner = C(0.32, 0.32, 1.05, mat.glass, 28);
+  // Glass liner + metal lip
+  const liner = C(0.32, 0.32, 1.05, mat.glass, 32);
   liner.position.set(0, 1.3, z);
   bankG.add(liner);
   liners.push(liner);
+  const lip = C(0.335, 0.335, 0.04, mat.linerMetal, 28);
+  lip.position.set(0, 1.8, z);
+  bankG.add(lip);
 
   const head = B(0.72, 0.24, 0.72, mat.block);
   head.position.set(0, 1.92, z);
   bankG.add(head);
   heads.push(head);
 
-  const pg = new THREE.Group();
+  // Realistic piston
+  const pg = createPiston();
   engine.add(pg);
-  const piston = C(0.3, 0.3, 0.2, mat.piston, 24); pg.add(piston);
-  const crown = C(0.28, 0.28, 0.02, mat.accent, 24); crown.position.y = 0.1; pg.add(crown);
-  for (let r = 0; r < 3; r++) {
-    const ring = C(0.305, 0.305, 0.012, mat.dark, 20);
-    ring.position.y = 0.04 - r * 0.028; pg.add(ring);
-  }
-  const gudgeon = C(0.03, 0.03, 0.36, mat.crank, 10);
-  gudgeon.rotation.x = Math.PI / 2; gudgeon.position.y = -0.01; pg.add(gudgeon);
   pistons.push({ group: pg, bank: c.bank, z, bankAngle, throw: c.throw });
 
-  const rg = new THREE.Group();
+  // I-beam connecting rod
+  const rg = createRod(rodLen);
   engine.add(rg);
-  const rodBody = B(0.065, rodLen * 0.85, 0.045, mat.rod); rg.add(rodBody);
-  const bigEnd = C(0.085, 0.085, 0.11, mat.rod, 14);
-  bigEnd.rotation.x = Math.PI / 2; bigEnd.position.y = -rodLen / 2; rg.add(bigEnd);
-  const smallEnd = C(0.045, 0.045, 0.09, mat.rod, 12);
-  smallEnd.rotation.x = Math.PI / 2; smallEnd.position.y = rodLen / 2; rg.add(smallEnd);
   rods.push({ group: rg, bank: c.bank, z, bankAngle, throw: c.throw });
 
+  // Crank throw
   const tg = new THREE.Group();
   tg.position.z = z;
   crankG.add(tg);
@@ -479,6 +576,7 @@ for (let i = 0; i < 8; i++) {
   cw.rotation.x = Math.PI / 2; cw.rotation.z = Math.PI; cw.position.x = -throwR * 0.2; tg.add(cw);
   throws.push({ group: tg, throwOffset: c.throw });
 
+  // Valves + springs
   const vIn = new THREE.Group(), vEx = new THREE.Group();
   engine.add(vIn); engine.add(vEx);
   function makeV(g) {
