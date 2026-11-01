@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teardown — Free Offline Simulators</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #e8eaee;
+      color: #1a1d24;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+    h1 span { color: #e11d48; }
+    .sub {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 40px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      max-width: 900px;
+      width: 100%;
+    }
+    a.card {
+      background: #fff;
+      border: 1px solid #d8dce3;
+      border-radius: 12px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.15s, transform 0.15s;
+      display: block;
+    }
+    a.card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+    .card h2 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .card p {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.45;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #e11d48;
+      background: #fff1f2;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    footer {
+      margin-top: 48px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <h1><span>Teardown</span> Free Simulators</h1>
+  <p class="sub">Interactive 3D machines you can take apart — no install, runs offline</p>
+
+  <div class="grid">
+    <a class="card" href="standalone/engine-teardown.html">
+      <div class="badge">Updated</div>
+      <h2>Single-Cylinder Engine</h2>
+      <p>4-stroke slider-crank with live gauges, cutaway, explode view and valve timing chart.</p>
+    </a>
+
+    <a class="card" href="standalone/derailleur-teardown.html">
+      <div class="badge">Bicycle</div>
+      <h2>Rear Derailleur</h2>
+      <p>Parallelogram linkage, jockey wheels and gear shifting mechanism.</p>
+    </a>
+
+    <a class="card" href="standalone/escapement-teardown.html">
+      <div class="badge">Watch</div>
+      <h2>Swiss Lever Escapement</h2>
+      <p>Balance wheel, pallet fork and escape wheel — the heart of a mechanical watch.</p>
+    </a>
+  </div>
+
+  <footer>Free · Offline · Open source</footer>
+</body>
+</html>
