@@ -142,7 +142,7 @@ addEventListener('resize',resize);
 let track=0,th=0,run=true,thr=.7,curve=[];
 const chips=$('chips');ORDER.forEach(n=>{const b=document.createElement('button');b.textContent=n;b.dataset.n=n;b.onclick=()=>{track=n-1;sel();if(iso)isolate()};chips.appendChild(b)});
 const sel=()=>{[...chips.children].forEach(b=>b.classList.toggle('on',+b.dataset.n===track+1));$('trk').textContent='Cylinder '+(track+1)+' · '+((track+1)%2?'right':'left')+' bank'};sel();
-function buildCurve(){curve=[];for(let ph=0;ph<=720;ph+=4){const a=(ph%360)*D;curve.push([xOf(a),pOf(ph,xOf(a),thr),ph])}}buildCurve();
+function buildCurve(){curve=[];for(let ph=0;ph<=720;ph+=4){const a=(ph%360)*D;curve.push([xOf(a),pOf(ph,xOf(a),thr),ph]);} }buildCurve();
 $('th').oninput=e=>{thr=+e.target.value;buildCurve()};$('pb').oninput=e=>$('pbv').textContent=e.target.value;
 const setRun=r=>{run=r;$('pz').textContent=run?'Pause':'Play';$('pz').classList.toggle('on',run)};$('pz').onclick=()=>setRun(!run);
 $('m15').onclick=()=>{setRun(false);th=mod(th-15,720)};$('p15').onclick=()=>{setRun(false);th=mod(th+15,720)};
