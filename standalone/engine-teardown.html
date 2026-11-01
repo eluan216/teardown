@@ -3,300 +3,323 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Single-Cylinder Teardown — Free Offline Simulator</title>
+<title>Single-Cylinder Engine — Teardown</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
-    --bg: #0c0e12;
-    --panel: #14181f;
-    --border: #252b36;
-    --text: #e8ecf1;
-    --muted: #8b95a5;
+    --bg: #0a0b0e;
+    --surface: rgba(18, 20, 26, 0.72);
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f2f5;
+    --muted: #8b93a1;
     --accent: #3b82f6;
-    --accent-dim: #1e3a5f;
-    --good: #22c55e;
-    --warn: #f59e0b;
-    --danger: #ef4444;
+    --accent-soft: rgba(59, 130, 246, 0.15);
+    --good: #34d399;
+    --warn: #fbbf24;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   html, body {
     width: 100%; height: 100%;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overflow: hidden;
     user-select: none;
+    -webkit-font-smoothing: antialiased;
   }
 
-  #canvas-container {
-    position: absolute;
-    inset: 0;
-  }
-
+  #canvas-container { position: absolute; inset: 0; }
   canvas { display: block; width: 100%; height: 100%; }
 
-  /* Top bar */
-  .topbar {
+  /* Top brand */
+  .brand {
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    background: linear-gradient(to bottom, rgba(12,14,18,0.92), transparent);
+    top: 20px; left: 24px;
     z-index: 20;
     pointer-events: none;
   }
-  .topbar > * { pointer-events: auto; }
-
-  .brand {
+  .brand h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     display: flex;
     align-items: center;
     gap: 10px;
-    font-weight: 600;
-    font-size: 15px;
-    letter-spacing: -0.02em;
   }
-  .brand span { color: var(--muted); font-weight: 400; font-size: 13px; }
-
+  .brand h1 span {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 13px;
+  }
   .badge {
-    background: var(--accent-dim);
-    color: var(--accent);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
     padding: 3px 8px;
     border-radius: 4px;
-    letter-spacing: 0.03em;
   }
 
-  /* Control panel - left */
-  .panel {
+  /* Floating control bar */
+  .controls {
     position: absolute;
-    background: rgba(20,24,31,0.88);
-    backdrop-filter: blur(12px);
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-    z-index: 15;
+    border-radius: 14px;
+    padding: 8px 10px;
+    z-index: 20;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
 
-  .left-panel {
-    top: 70px;
-    left: 16px;
-    width: 220px;
-  }
-
-  .right-panel {
-    top: 70px;
-    right: 16px;
-    width: 240px;
-  }
-
-  .panel h3 {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin-bottom: 12px;
-  }
-
-  .btn-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-
-  button {
-    background: #1c222d;
-    border: 1px solid var(--border);
+  .controls button {
+    background: transparent;
+    border: none;
     color: var(--text);
     font-family: inherit;
     font-size: 13px;
     font-weight: 500;
-    padding: 9px 12px;
-    border-radius: 8px;
+    padding: 8px 14px;
+    border-radius: 9px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  button:hover { background: #252c3a; border-color: #3a4556; }
-  button.active {
-    background: var(--accent-dim);
-    border-color: var(--accent);
+  .controls button:hover { background: rgba(255,255,255,0.06); }
+  .controls button.active {
+    background: var(--accent-soft);
     color: #93c5fd;
   }
-  button:active { transform: scale(0.97); }
-
-  .slider-row {
-    margin-bottom: 14px;
+  .controls .divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
   }
-  .slider-row label {
+
+  /* Right side readouts */
+  .readouts {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 200px;
+    z-index: 20;
     display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 6px;
-  }
-  .slider-row label span {
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text);
-    font-size: 12px;
-  }
-  input[type=range] {
-    width: 100%;
-    accent-color: var(--accent);
-    height: 4px;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  /* Gauges */
-  .gauge {
-    background: #0f1319;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
+  .card {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
   }
-  .gauge-label {
+
+  .card .label {
     font-size: 11px;
+    font-weight: 500;
     color: var(--muted);
     margin-bottom: 4px;
-    display: flex;
-    justify-content: space-between;
+    letter-spacing: 0.02em;
   }
-  .gauge-value {
+
+  .card .value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 500;
     letter-spacing: -0.03em;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
   }
-  .gauge-unit {
+  .card .value .unit {
     font-size: 12px;
     color: var(--muted);
-    margin-left: 4px;
+    font-weight: 400;
   }
-  .bar {
-    height: 4px;
-    background: #1c222d;
+
+  .card .bar {
+    height: 3px;
+    background: rgba(255,255,255,0.06);
     border-radius: 2px;
     margin-top: 8px;
     overflow: hidden;
   }
-  .bar > div {
+  .card .bar > div {
     height: 100%;
     background: var(--accent);
     border-radius: 2px;
     transition: width 0.08s linear;
   }
 
+  /* Phase pill */
+  .phase {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.05);
+    display: inline-block;
+    margin-top: 2px;
+  }
+  .phase.power { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+  .phase.compression { background: rgba(251, 191, 36, 0.12); color: #fcd34d; }
+  .phase.intake { background: rgba(52, 211, 153, 0.12); color: #6ee7b7; }
+  .phase.exhaust { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+
+  /* Speed / throttle row */
+  .sliders {
+    position: absolute;
+    bottom: 28px;
+    left: 24px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 160px;
+  }
+  .slider-group {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .slider-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .slider-group label span {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+    font-size: 11px;
+  }
+  input[type=range] {
+    width: 100%;
+    height: 3px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
   /* Status */
   .status {
     position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(20,24,31,0.9);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 8px 18px;
+    bottom: 28px;
+    right: 24px;
+    z-index: 20;
     font-size: 12px;
     color: var(--muted);
-    z-index: 15;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 14px;
   }
   .status .dot {
-    width: 7px; height: 7px;
+    width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--good);
   }
   .status.idle .dot { background: var(--warn); }
 
-  /* Help overlay */
-  .help {
-    position: absolute;
-    bottom: 20px;
-    right: 16px;
-    font-size: 11px;
-    color: var(--muted);
-    z-index: 15;
-    text-align: right;
-    line-height: 1.5;
-  }
-
   @media (max-width: 700px) {
-    .left-panel, .right-panel { width: 170px; padding: 12px; }
-    .gauge-value { font-size: 18px; }
-    .btn-grid { grid-template-columns: 1fr; }
+    .readouts { width: 150px; top: 12px; right: 12px; }
+    .card .value { font-size: 16px; }
+    .sliders { display: none; }
+    .controls { bottom: 16px; padding: 6px 8px; }
+    .controls button { padding: 7px 10px; font-size: 12px; }
   }
 </style>
 </head>
 <body>
   <div id="canvas-container"></div>
 
-  <div class="topbar">
-    <div class="brand">
-      Engine Teardown
-      <span>Single-Cylinder 4-Stroke</span>
-      <div class="badge">FREE · OFFLINE</div>
-    </div>
+  <div class="brand">
+    <h1>
+      Single-Cylinder Engine
+      <span>4-Stroke · Slider-Crank</span>
+      <span class="badge">Free</span>
+    </h1>
   </div>
 
-  <div class="panel left-panel">
-    <h3>Controls</h3>
-    <div class="btn-grid">
-      <button id="btn-run" class="active">Running</button>
-      <button id="btn-explode">Explode</button>
-      <button id="btn-cutaway">Cutaway</button>
-      <button id="btn-reset">Reset Cam</button>
-    </div>
-
-    <div class="slider-row">
-      <label>Speed <span id="speed-val">1200 rpm</span></label>
-      <input type="range" id="speed" min="200" max="4000" value="1200" step="50">
-    </div>
-    <div class="slider-row">
-      <label>Throttle <span id="throttle-val">65%</span></label>
-      <input type="range" id="throttle" min="10" max="100" value="65" step="1">
-    </div>
-  </div>
-
-  <div class="panel right-panel">
-    <h3>Live Data</h3>
-    <div class="gauge">
-      <div class="gauge-label">Crank Angle</div>
-      <div class="gauge-value"><span id="g-angle">0</span><span class="gauge-unit">°</span></div>
+  <div class="readouts">
+    <div class="card">
+      <div class="label">Crank Angle</div>
+      <div class="value"><span id="g-angle">0</span><span class="unit">°</span></div>
       <div class="bar"><div id="bar-angle" style="width:0%"></div></div>
     </div>
-    <div class="gauge">
-      <div class="gauge-label">Piston Position</div>
-      <div class="gauge-value"><span id="g-piston">0.00</span><span class="gauge-unit">mm</span></div>
+    <div class="card">
+      <div class="label">Piston Position</div>
+      <div class="value"><span id="g-piston">0.0</span><span class="unit">mm</span></div>
       <div class="bar"><div id="bar-piston" style="width:50%"></div></div>
     </div>
-    <div class="gauge">
-      <div class="gauge-label">Approx. Pressure</div>
-      <div class="gauge-value"><span id="g-pressure">1.0</span><span class="gauge-unit">bar</span></div>
-      <div class="bar"><div id="bar-pressure" style="width:10%"></div></div>
+    <div class="card">
+      <div class="label">Cylinder Pressure</div>
+      <div class="value"><span id="g-pressure">1.0</span><span class="unit">bar</span></div>
+      <div class="bar"><div id="bar-pressure" style="width:8%"></div></div>
     </div>
-    <div class="gauge">
-      <div class="gauge-label">Cycle Phase</div>
-      <div class="gauge-value" style="font-size:16px" id="g-phase">Intake</div>
+    <div class="card">
+      <div class="label">Cycle Phase</div>
+      <div class="phase intake" id="g-phase">Intake</div>
     </div>
+  </div>
+
+  <div class="sliders">
+    <div class="slider-group">
+      <label>Speed <span id="speed-val">1200 rpm</span></label>
+      <input type="range" id="speed" min="300" max="3600" value="1200" step="50">
+    </div>
+    <div class="slider-group">
+      <label>Throttle <span id="throttle-val">65%</span></label>
+      <input type="range" id="throttle" min="15" max="100" value="65" step="1">
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btn-run" class="active">Running</button>
+    <div class="divider"></div>
+    <button id="btn-cutaway">Cutaway</button>
+    <button id="btn-explode">Explode</button>
+    <div class="divider"></div>
+    <button id="btn-reset">Reset View</button>
   </div>
 
   <div class="status" id="status">
     <div class="dot"></div>
-    <span id="status-text">Interactive · Drag to orbit</span>
-  </div>
-
-  <div class="help">
-    Drag to orbit · Scroll to zoom<br>
-    Idle 8s → auto tour resumes
+    <span id="status-text">Drag to orbit · Scroll to zoom</span>
   </div>
 
 <script type="importmap">
@@ -307,36 +330,30 @@
   }
 }
 </script>
-
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-// ─────────────────────────────────────────────
-//  State
-// ─────────────────────────────────────────────
+// ── State ──────────────────────────────────
 const state = {
   running: true,
   exploded: false,
   cutaway: false,
   rpm: 1200,
   throttle: 0.65,
-  crankAngle: 0,          // radians, 0..4π for full 4-stroke
+  crankAngle: 0,
   lastTime: performance.now(),
   idleTimer: 0,
   autoTour: false,
   tourT: 0,
 };
 
-// Real-ish dimensions (mm → scene units scaled)
-const BORE = 86;          // mm
-const STROKE = 86;        // mm
-const ROD = 145;          // connecting rod length mm
-const SCALE = 0.012;      // mm → Three units
+const BORE = 86, STROKE = 86, ROD = 145;
+const SCALE = 0.0115;
+const throwR = (STROKE / 2) * SCALE;
 
-// ─────────────────────────────────────────────
-//  Scene setup
-// ─────────────────────────────────────────────
+// ── Renderer & Scene ───────────────────────
 const container = document.getElementById('canvas-container');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -344,203 +361,215 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0c0e12);
-scene.fog = new THREE.Fog(0x0c0e12, 18, 42);
+scene.background = new THREE.Color(0x0a0b0e);
+scene.fog = new THREE.Fog(0x0a0b0e, 14, 32);
 
-const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(4.2, 2.4, 5.8);
+// Soft environment
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.08, 60);
+camera.position.set(3.9, 2.1, 5.1);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.07;
-controls.target.set(0, 0.9, 0);
-controls.minDistance = 2.5;
-controls.maxDistance = 18;
-controls.maxPolarAngle = Math.PI * 0.85;
+controls.dampingFactor = 0.06;
+controls.target.set(0, 0.85, 0);
+controls.minDistance = 2.2;
+controls.maxDistance = 14;
+controls.maxPolarAngle = Math.PI * 0.82;
 
-// Lights
-const amb = new THREE.AmbientLight(0x404860, 0.55);
+// ── Lighting ───────────────────────────────
+const amb = new THREE.AmbientLight(0x6a7390, 0.35);
 scene.add(amb);
 
-const key = new THREE.DirectionalLight(0xfff5e8, 1.6);
-key.position.set(6, 10, 5);
+const key = new THREE.DirectionalLight(0xfff6ea, 1.7);
+key.position.set(5.5, 9, 4.5);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 key.shadow.camera.near = 1;
-key.shadow.camera.far = 30;
-key.shadow.camera.left = -8;
-key.shadow.camera.right = 8;
-key.shadow.camera.top = 8;
-key.shadow.camera.bottom = -8;
-key.shadow.bias = -0.0003;
+key.shadow.camera.far = 28;
+key.shadow.camera.left = -7;
+key.shadow.camera.right = 7;
+key.shadow.camera.top = 7;
+key.shadow.camera.bottom = -7;
+key.shadow.bias = -0.00025;
+key.shadow.normalBias = 0.02;
 scene.add(key);
 
-const fill = new THREE.DirectionalLight(0x88aaff, 0.45);
-fill.position.set(-5, 3, -4);
+const fill = new THREE.DirectionalLight(0xa8c4ff, 0.45);
+fill.position.set(-5, 3.5, -3);
 scene.add(fill);
 
-const rim = new THREE.DirectionalLight(0xffaa66, 0.35);
-rim.position.set(0, 2, -8);
+const rim = new THREE.DirectionalLight(0xffc48a, 0.35);
+rim.position.set(1, 2.5, -7);
 scene.add(rim);
 
-// Ground
-const groundGeo = new THREE.CircleGeometry(12, 64);
+// Soft ground
+const groundGeo = new THREE.CircleGeometry(11, 64);
 const groundMat = new THREE.MeshStandardMaterial({
-  color: 0x12151c,
+  color: 0x101218,
   roughness: 0.92,
-  metalness: 0.05,
+  metalness: 0.08,
 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.02;
+ground.position.y = -0.01;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Soft grid
-const grid = new THREE.GridHelper(16, 32, 0x1e2530, 0x161b24);
-grid.position.y = 0.01;
+// Subtle grid
+const grid = new THREE.GridHelper(12, 24, 0x1c2230, 0x141820);
+grid.position.y = 0.005;
 scene.add(grid);
 
-// ─────────────────────────────────────────────
-//  Materials
-// ─────────────────────────────────────────────
+// ── Materials (higher quality) ─────────────
 const mat = {
-  block: new THREE.MeshStandardMaterial({ color: 0x2a303c, roughness: 0.55, metalness: 0.7 }),
-  piston: new THREE.MeshStandardMaterial({ color: 0xc0c8d4, roughness: 0.35, metalness: 0.85 }),
-  rod: new THREE.MeshStandardMaterial({ color: 0x8a929e, roughness: 0.4, metalness: 0.8 }),
-  crank: new THREE.MeshStandardMaterial({ color: 0x3d4450, roughness: 0.3, metalness: 0.9 }),
-  valve: new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.25, metalness: 0.9 }),
-  glass: new THREE.MeshPhysicalMaterial({
-    color: 0x88ccff,
-    transparent: true,
-    opacity: 0.18,
-    roughness: 0.05,
-    metalness: 0.1,
-    transmission: 0.7,
-    thickness: 0.4,
-    side: THREE.DoubleSide,
+  block: new THREE.MeshStandardMaterial({
+    color: 0x2c3340, roughness: 0.42, metalness: 0.72,
   }),
-  accent: new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4, metalness: 0.6, emissive: 0x1e40af, emissiveIntensity: 0.15 }),
-  dark: new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.7, metalness: 0.4 }),
+  piston: new THREE.MeshStandardMaterial({
+    color: 0xd0d6e0, roughness: 0.28, metalness: 0.88,
+  }),
+  rod: new THREE.MeshStandardMaterial({
+    color: 0x9aa3b0, roughness: 0.32, metalness: 0.85,
+  }),
+  crank: new THREE.MeshStandardMaterial({
+    color: 0x3a4250, roughness: 0.25, metalness: 0.92,
+  }),
+  valve: new THREE.MeshStandardMaterial({
+    color: 0xc5cdd8, roughness: 0.22, metalness: 0.9,
+  }),
+  glass: new THREE.MeshPhysicalMaterial({
+    color: 0x88c8ff,
+    transparent: true,
+    opacity: 0.22,
+    roughness: 0.05,
+    metalness: 0.05,
+    transmission: 0.75,
+    thickness: 0.5,
+    side: THREE.DoubleSide,
+    ior: 1.45,
+  }),
+  accent: new THREE.MeshStandardMaterial({
+    color: 0x3b82f6, roughness: 0.35, metalness: 0.55,
+    emissive: 0x1e40af, emissiveIntensity: 0.18,
+  }),
+  dark: new THREE.MeshStandardMaterial({
+    color: 0x1a1f2a, roughness: 0.55, metalness: 0.45,
+  }),
+  flywheel: new THREE.MeshStandardMaterial({
+    color: 0x252b38, roughness: 0.38, metalness: 0.8,
+  }),
 };
 
-// ─────────────────────────────────────────────
-//  Build the engine (code geometry)
-// ─────────────────────────────────────────────
+function makeCyl(rTop, rBot, h, material, segs = 40) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, segs), material);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+function makeBox(w, h, d, material) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
+// ── Engine assembly ────────────────────────
 const engine = new THREE.Group();
 scene.add(engine);
-
-// Helpers
-function cyl(r, h, mat, segs = 32) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segs), mat);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
-}
-function box(w, h, d, mat) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
-}
 
 // Crankcase
 const crankcase = new THREE.Group();
 engine.add(crankcase);
 
-const caseBody = box(1.6, 1.1, 1.0, mat.block);
-caseBody.position.y = 0.35;
-crankcase.add(caseBody);
+const caseMain = makeBox(1.55, 1.05, 0.95, mat.block);
+caseMain.position.y = 0.32;
+crankcase.add(caseMain);
 
-const caseFront = cyl(0.55, 0.18, mat.block, 48);
+const caseFront = makeCyl(0.52, 0.52, 0.16, mat.block, 48);
 caseFront.rotation.x = Math.PI / 2;
-caseFront.position.set(0, 0.25, 0.55);
+caseFront.position.set(0, 0.22, 0.52);
 crankcase.add(caseFront);
 
 const caseRear = caseFront.clone();
-caseRear.position.z = -0.55;
+caseRear.position.z = -0.52;
 crankcase.add(caseRear);
 
-// Cylinder block
-const cylBlock = new THREE.Group();
-engine.add(cylBlock);
+// Cylinder
+const cylGroup = new THREE.Group();
+engine.add(cylGroup);
 
-const blockOuter = cyl(0.62, 1.35, mat.block, 48);
-blockOuter.position.y = 1.55;
-cylBlock.add(blockOuter);
+const blockOuter = makeCyl(0.58, 0.58, 1.32, mat.block, 56);
+blockOuter.position.y = 1.48;
+cylGroup.add(blockOuter);
 
-// Cylinder liner (visible in cutaway)
-const liner = cyl(0.48, 1.32, mat.glass, 48);
-liner.position.y = 1.55;
+const liner = makeCyl(0.46, 0.46, 1.28, mat.glass, 56);
+liner.position.y = 1.48;
 liner.visible = false;
-cylBlock.add(liner);
+cylGroup.add(liner);
 
 // Head
-const head = box(1.35, 0.38, 1.15, mat.block);
-head.position.y = 2.38;
-cylBlock.add(head);
+const head = makeBox(1.28, 0.36, 1.1, mat.block);
+head.position.y = 2.28;
+cylGroup.add(head);
 
-// Valve covers / ports
-const intakePort = box(0.35, 0.22, 0.45, mat.dark);
-intakePort.position.set(-0.45, 2.45, 0.35);
-cylBlock.add(intakePort);
-const exhaustPort = box(0.35, 0.22, 0.45, mat.dark);
-exhaustPort.position.set(0.45, 2.45, 0.35);
-cylBlock.add(exhaustPort);
+// Ports
+const intakePort = makeBox(0.32, 0.2, 0.42, mat.dark);
+intakePort.position.set(-0.42, 2.35, 0.32);
+cylGroup.add(intakePort);
+const exhaustPort = makeBox(0.32, 0.2, 0.42, mat.dark);
+exhaustPort.position.set(0.42, 2.35, 0.32);
+cylGroup.add(exhaustPort);
 
-// Crankshaft group
+// Crankshaft
 const crankGroup = new THREE.Group();
-crankGroup.position.y = 0.25;
+crankGroup.position.y = 0.22;
 engine.add(crankGroup);
 
-const mainJournal = cyl(0.12, 1.35, mat.crank, 24);
+const mainJournal = makeCyl(0.11, 0.11, 1.28, mat.crank, 28);
 mainJournal.rotation.x = Math.PI / 2;
 crankGroup.add(mainJournal);
 
-// Crank throw (offset)
-const throwOffset = (STROKE / 2) * SCALE; // ~0.516
-const crankPin = cyl(0.09, 0.22, mat.crank, 20);
+const crankPin = makeCyl(0.085, 0.085, 0.2, mat.crank, 24);
 crankPin.rotation.x = Math.PI / 2;
-crankPin.position.x = throwOffset;
+crankPin.position.x = throwR;
 crankGroup.add(crankPin);
 
-// Webs
-const web1 = box(0.55, 0.08, 0.28, mat.crank);
-web1.position.set(throwOffset * 0.5, 0, 0.16);
+const web1 = makeBox(0.52, 0.07, 0.26, mat.crank);
+web1.position.set(throwR * 0.48, 0, 0.15);
 crankGroup.add(web1);
-const web2 = box(0.55, 0.08, 0.28, mat.crank);
-web2.position.set(throwOffset * 0.5, 0, -0.16);
+const web2 = makeBox(0.52, 0.07, 0.26, mat.crank);
+web2.position.set(throwR * 0.48, 0, -0.15);
 crankGroup.add(web2);
 
-// Counterweight
 const counter = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.38, 0.38, 0.14, 32, 1, false, 0, Math.PI),
+  new THREE.CylinderGeometry(0.36, 0.36, 0.13, 36, 1, false, 0, Math.PI),
   mat.crank
 );
 counter.rotation.x = Math.PI / 2;
 counter.rotation.z = Math.PI;
-counter.position.x = -throwOffset * 0.35;
+counter.position.x = -throwR * 0.32;
 crankGroup.add(counter);
 
-// Piston + rod group
+// Piston
 const pistonGroup = new THREE.Group();
 engine.add(pistonGroup);
 
-const piston = cyl(0.46, 0.32, mat.piston, 40);
-piston.position.y = 0;
+const piston = makeCyl(0.44, 0.44, 0.3, mat.piston, 48);
 pistonGroup.add(piston);
 
-// Piston crown detail
-const crown = cyl(0.44, 0.04, mat.accent, 40);
-crown.position.y = 0.16;
+const crown = makeCyl(0.42, 0.42, 0.035, mat.accent, 48);
+crown.position.y = 0.15;
 pistonGroup.add(crown);
 
-// Gudgeon pin
-const gudgeon = cyl(0.05, 0.55, mat.crank, 16);
+const gudgeon = makeCyl(0.045, 0.045, 0.52, mat.crank, 16);
 gudgeon.rotation.x = Math.PI / 2;
 gudgeon.position.y = -0.02;
 pistonGroup.add(gudgeon);
@@ -549,154 +578,131 @@ pistonGroup.add(gudgeon);
 const rodGroup = new THREE.Group();
 engine.add(rodGroup);
 
-const rodBody = box(0.12, ROD * SCALE, 0.08, mat.rod);
-rodBody.position.y = 0;
+const rodLen = ROD * SCALE;
+const rodBody = makeBox(0.1, rodLen, 0.07, mat.rod);
 rodGroup.add(rodBody);
 
-const bigEnd = cyl(0.14, 0.2, mat.rod, 20);
+const bigEnd = makeCyl(0.13, 0.13, 0.18, mat.rod, 24);
 bigEnd.rotation.x = Math.PI / 2;
-bigEnd.position.y = -(ROD * SCALE) / 2;
+bigEnd.position.y = -rodLen / 2;
 rodGroup.add(bigEnd);
 
-const smallEnd = cyl(0.08, 0.18, mat.rod, 16);
+const smallEnd = makeCyl(0.07, 0.07, 0.16, mat.rod, 20);
 smallEnd.rotation.x = Math.PI / 2;
-smallEnd.position.y = (ROD * SCALE) / 2;
+smallEnd.position.y = rodLen / 2;
 rodGroup.add(smallEnd);
 
-// Valves (simplified)
+// Valves
 const valveIntake = new THREE.Group();
 const valveExhaust = new THREE.Group();
 engine.add(valveIntake);
 engine.add(valveExhaust);
 
-function makeValve(group, x) {
-  const stem = cyl(0.025, 0.55, mat.valve, 12);
-  stem.position.y = 0.25;
+function buildValve(group, x) {
+  const stem = makeCyl(0.022, 0.022, 0.52, mat.valve, 14);
+  stem.position.y = 0.22;
   group.add(stem);
-  const headV = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.06, 24), mat.valve);
+  const headV = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.055, 28), mat.valve);
   headV.position.y = -0.02;
   headV.rotation.x = Math.PI;
+  headV.castShadow = true;
   group.add(headV);
-  group.position.set(x, 2.15, 0.15);
+  group.position.set(x, 2.05, 0.12);
 }
-makeValve(valveIntake, -0.28);
-makeValve(valveExhaust, 0.28);
+buildValve(valveIntake, -0.26);
+buildValve(valveExhaust, 0.26);
 
 // Flywheel
-const flywheel = cyl(0.75, 0.12, mat.block, 48);
+const flywheel = makeCyl(0.72, 0.72, 0.11, mat.flywheel, 56);
 flywheel.rotation.x = Math.PI / 2;
-flywheel.position.set(0, 0.25, -0.85);
+flywheel.position.set(0, 0.22, -0.82);
 engine.add(flywheel);
 
-// Exhaust / intake pipes (decorative)
-const pipeMat = mat.dark;
-const exPipe = cyl(0.12, 0.9, pipeMat, 16);
+// Exhaust stub
+const exPipe = makeCyl(0.11, 0.11, 0.85, mat.dark, 20);
 exPipe.rotation.z = Math.PI / 2;
-exPipe.position.set(0.95, 2.45, 0.35);
+exPipe.position.set(0.9, 2.35, 0.32);
 engine.add(exPipe);
 
-// Exploded targets (offsets)
-const explodeTargets = {
-  piston: new THREE.Vector3(0, 1.8, 0),
-  rod: new THREE.Vector3(1.4, 0.9, 0),
-  crank: new THREE.Vector3(-1.6, 0.25, 0),
-  valves: new THREE.Vector3(0, 1.2, 0),
-  head: new THREE.Vector3(0, 0.9, 0),
-};
-
-// ─────────────────────────────────────────────
-//  Kinematics
-// ─────────────────────────────────────────────
+// ── Kinematics ─────────────────────────────
 function updateKinematics(angle) {
-  // angle = 0..4π covers full 4-stroke (720°)
-  const theta = angle; // crank angle
-  const r = throwOffset;
-  const l = ROD * SCALE;
+  const theta = angle;
+  const r = throwR;
+  const l = rodLen;
 
-  // Slider-crank
-  const pistonY = r * Math.cos(theta) + Math.sqrt(l * l - r * r * Math.sin(theta) * Math.sin(theta));
-  const baseY = 0.25; // crank center
+  const pistonY = r * Math.cos(theta) + Math.sqrt(Math.max(0, l * l - r * r * Math.sin(theta) * Math.sin(theta)));
+  const baseY = 0.22;
   const pistonCenterY = baseY + pistonY;
+
+  const exp = state.exploded ? 1 : 0;
 
   // Piston
   pistonGroup.position.y = pistonCenterY;
-  pistonGroup.position.x = state.exploded ? 1.6 : 0;
-  pistonGroup.position.z = state.exploded ? 0.8 : 0;
+  pistonGroup.position.x = exp * 1.55;
+  pistonGroup.position.z = exp * 0.7;
 
-  // Rod angle
-  const phi = Math.asin((r / l) * Math.sin(theta));
+  // Rod
+  const phi = Math.asin(Math.max(-1, Math.min(1, (r / l) * Math.sin(theta))));
   rodGroup.position.y = (baseY + pistonCenterY) / 2;
-  rodGroup.position.x = state.exploded ? 1.1 : (r * Math.sin(theta)) * 0.5;
-  rodGroup.rotation.z = state.exploded ? 0.4 : -phi;
-  rodGroup.position.z = state.exploded ? 0.5 : 0;
+  rodGroup.position.x = exp ? 1.05 : (r * Math.sin(theta)) * 0.5;
+  rodGroup.rotation.z = exp ? 0.35 : -phi;
+  rodGroup.position.z = exp * 0.45;
 
   // Crank
   crankGroup.rotation.z = -theta;
-  crankGroup.position.x = state.exploded ? -1.5 : 0;
-  crankGroup.position.z = state.exploded ? -0.6 : 0;
+  crankGroup.position.x = exp * -1.45;
+  crankGroup.position.z = exp * -0.55;
 
-  // Valves – simple 4-stroke timing
-  // Intake open roughly 0–π (first half of 720°)
-  // Exhaust open roughly 2π–3π
-  const cycle = (theta % (Math.PI * 4)) / (Math.PI * 4); // 0..1 over 720°
-  let intakeLift = 0;
-  let exhaustLift = 0;
-
-  // Rough cam profiles
+  // Valves (simple 4-stroke)
+  const cycle = ((theta % (Math.PI * 4)) + Math.PI * 4) % (Math.PI * 4) / (Math.PI * 4);
+  let intakeLift = 0, exhaustLift = 0;
   if (cycle < 0.22) intakeLift = Math.sin((cycle / 0.22) * Math.PI);
   if (cycle > 0.48 && cycle < 0.72) exhaustLift = Math.sin(((cycle - 0.48) / 0.24) * Math.PI);
 
-  valveIntake.position.y = 2.15 + intakeLift * 0.18 + (state.exploded ? 0.9 : 0);
-  valveExhaust.position.y = 2.15 + exhaustLift * 0.18 + (state.exploded ? 0.9 : 0);
-  valveIntake.position.x = state.exploded ? -0.9 : -0.28;
-  valveExhaust.position.x = state.exploded ? 0.9 : 0.28;
+  valveIntake.position.y = 2.05 + intakeLift * 0.17 + exp * 0.85;
+  valveExhaust.position.y = 2.05 + exhaustLift * 0.17 + exp * 0.85;
+  valveIntake.position.x = exp ? -0.85 : -0.26;
+  valveExhaust.position.x = exp ? 0.85 : 0.26;
 
-  // Head lift on explode
-  head.position.y = 2.38 + (state.exploded ? 1.1 : 0);
+  head.position.y = 2.28 + exp * 1.05;
 
   // Cutaway
   blockOuter.visible = !state.cutaway;
   liner.visible = state.cutaway;
 
-  // Return useful numbers
-  const strokePos = (pistonY - (l - r)) / (2 * r); // 0 at BDC, 1 at TDC roughly
   return {
-    pistonY: (pistonCenterY - baseY) / SCALE, // mm
+    pistonMm: (pistonCenterY - baseY) / SCALE,
     phase: getPhase(cycle),
     pressure: approxPressure(cycle, state.throttle),
-    intakeLift,
-    exhaustLift,
+    cycle,
   };
 }
 
-function getPhase(cycle) {
-  if (cycle < 0.25) return 'Intake';
-  if (cycle < 0.50) return 'Compression';
-  if (cycle < 0.75) return 'Power';
+function getPhase(c) {
+  if (c < 0.25) return 'Intake';
+  if (c < 0.50) return 'Compression';
+  if (c < 0.75) return 'Power';
   return 'Exhaust';
 }
 
-function approxPressure(cycle, throttle) {
-  // Very rough indicator diagram approximation
-  if (cycle < 0.25) return 0.9 + 0.3 * throttle;               // intake ~1 bar
-  if (cycle < 0.50) {                                          // compression
-    const t = (cycle - 0.25) / 0.25;
-    return 1 + t * t * 12 * throttle;
+function approxPressure(c, th) {
+  if (c < 0.25) return 0.95 + 0.25 * th;
+  if (c < 0.50) {
+    const t = (c - 0.25) / 0.25;
+    return 1 + t * t * 11 * th;
   }
-  if (cycle < 0.55) return 35 * throttle + Math.random() * 2;   // peak
-  if (cycle < 0.75) {                                          // expansion
-    const t = (cycle - 0.55) / 0.20;
-    return (35 * throttle) * Math.pow(1 - t, 1.6) + 1.2;
+  if (c < 0.55) return 32 * th + Math.random() * 1.5;
+  if (c < 0.75) {
+    const t = (c - 0.55) / 0.20;
+    return (32 * th) * Math.pow(1 - t, 1.55) + 1.15;
   }
-  return 1.1;                                                  // exhaust
+  return 1.08;
 }
 
-// ─────────────────────────────────────────────
-//  UI wiring
-// ─────────────────────────────────────────────
+// ── UI ─────────────────────────────────────
 const btnRun = document.getElementById('btn-run');
-const btnExplode = document.getElementById('btn-explode');
 const btnCutaway = document.getElementById('btn-cutaway');
+const btnExplode = document.getElementById('btn-explode');
 const btnReset = document.getElementById('btn-reset');
 const speedSlider = document.getElementById('speed');
 const throttleSlider = document.getElementById('throttle');
@@ -709,32 +715,27 @@ btnRun.addEventListener('click', () => {
   btnRun.textContent = state.running ? 'Running' : 'Paused';
   resetIdle();
 });
-
+btnCutaway.addEventListener('click', () => {
+  state.cutaway = !state.cutaway;
+  btnCutaway.classList.toggle('active', state.cutaway);
+  resetIdle();
+});
 btnExplode.addEventListener('click', () => {
   state.exploded = !state.exploded;
   btnExplode.classList.toggle('active', state.exploded);
   btnExplode.textContent = state.exploded ? 'Assemble' : 'Explode';
   resetIdle();
 });
-
-btnCutaway.addEventListener('click', () => {
-  state.cutaway = !state.cutaway;
-  btnCutaway.classList.toggle('active', state.cutaway);
-  resetIdle();
-});
-
 btnReset.addEventListener('click', () => {
-  camera.position.set(4.2, 2.4, 5.8);
-  controls.target.set(0, 0.9, 0);
+  camera.position.set(3.9, 2.1, 5.1);
+  controls.target.set(0, 0.85, 0);
   resetIdle();
 });
-
 speedSlider.addEventListener('input', () => {
   state.rpm = +speedSlider.value;
   document.getElementById('speed-val').textContent = state.rpm + ' rpm';
   resetIdle();
 });
-
 throttleSlider.addEventListener('input', () => {
   state.throttle = +throttleSlider.value / 100;
   document.getElementById('throttle-val').textContent = throttleSlider.value + '%';
@@ -745,70 +746,61 @@ function resetIdle() {
   state.idleTimer = 0;
   state.autoTour = false;
   statusEl.classList.remove('idle');
-  statusText.textContent = 'Interactive · Drag to orbit';
+  statusText.textContent = 'Drag to orbit · Scroll to zoom';
 }
-
-// Track user interaction
 ['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach(ev => {
   window.addEventListener(ev, resetIdle, { passive: true });
 });
 
-// ─────────────────────────────────────────────
-//  Auto tour
-// ─────────────────────────────────────────────
 function updateAutoTour(dt) {
   if (!state.autoTour) return;
-  state.tourT += dt * 0.15;
-  const r = 6.5;
-  const h = 2.2 + Math.sin(state.tourT * 0.4) * 0.6;
+  state.tourT += dt * 0.14;
+  const r = 6.0;
   camera.position.x = Math.cos(state.tourT) * r;
   camera.position.z = Math.sin(state.tourT) * r;
-  camera.position.y = h;
-  controls.target.set(0, 1.0, 0);
+  camera.position.y = 2.0 + Math.sin(state.tourT * 0.4) * 0.55;
+  controls.target.set(0, 0.9, 0);
   controls.update();
 }
 
-// ─────────────────────────────────────────────
-//  Main loop
-// ─────────────────────────────────────────────
+// ── Loop ───────────────────────────────────
 function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min((now - state.lastTime) / 1000, 0.05);
   state.lastTime = now;
 
-  // Idle detection
   state.idleTimer += dt;
-  if (state.idleTimer > 8 && !state.autoTour) {
+  if (state.idleTimer > 9 && !state.autoTour) {
     state.autoTour = true;
     statusEl.classList.add('idle');
     statusText.textContent = 'Auto tour · Click to take control';
   }
 
   if (state.running) {
-    // rpm → rad/s for 720° cycle: one full 4-stroke every 2 revolutions
-    const omega = (state.rpm / 60) * Math.PI * 2; // rad/s of crank
+    const omega = (state.rpm / 60) * Math.PI * 2;
     state.crankAngle += omega * dt;
   }
 
   const kin = updateKinematics(state.crankAngle);
 
-  // Update gauges
-  const deg = ((state.crankAngle % (Math.PI * 4)) * 180 / Math.PI);
+  const deg = ((state.crankAngle % (Math.PI * 4)) + Math.PI * 4) % (Math.PI * 4) * 180 / Math.PI;
   document.getElementById('g-angle').textContent = deg.toFixed(0);
-  document.getElementById('bar-angle').style.width = ((deg / 720) * 100) + '%';
+  document.getElementById('bar-angle').style.width = (deg / 720 * 100) + '%';
 
-  document.getElementById('g-piston').textContent = kin.pistonY.toFixed(1);
-  const pistonNorm = Math.max(0, Math.min(1, (kin.pistonY + 20) / 100));
-  document.getElementById('bar-piston').style.width = (pistonNorm * 100) + '%';
+  document.getElementById('g-piston').textContent = kin.pistonMm.toFixed(1);
+  const pNorm = Math.max(0, Math.min(1, (kin.pistonMm + 15) / 95));
+  document.getElementById('bar-piston').style.width = (pNorm * 100) + '%';
 
   document.getElementById('g-pressure').textContent = kin.pressure.toFixed(1);
-  document.getElementById('bar-pressure').style.width = Math.min(100, (kin.pressure / 40) * 100) + '%';
-  document.getElementById('g-phase').textContent = kin.phase;
+  document.getElementById('bar-pressure').style.width = Math.min(100, kin.pressure / 38 * 100) + '%';
 
-  // Color the pressure bar by phase intensity
+  const phaseEl = document.getElementById('g-phase');
+  phaseEl.textContent = kin.phase;
+  phaseEl.className = 'phase ' + kin.phase.toLowerCase();
+
   const barP = document.getElementById('bar-pressure');
-  if (kin.pressure > 20) barP.style.background = 'var(--danger)';
-  else if (kin.pressure > 8) barP.style.background = 'var(--warn)';
+  if (kin.pressure > 18) barP.style.background = '#ef4444';
+  else if (kin.pressure > 7) barP.style.background = '#f59e0b';
   else barP.style.background = 'var(--accent)';
 
   if (state.autoTour) updateAutoTour(dt);
@@ -817,7 +809,6 @@ function animate(now) {
   renderer.render(scene, camera);
 }
 
-// Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -825,7 +816,6 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Kick off
 updateKinematics(0);
 animate(performance.now());
 </script>
