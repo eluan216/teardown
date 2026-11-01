@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bicycle Derailleur Teardown — Free Offline Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #0c0e12; --panel: #14181f; --border: #252b36; --text: #e8ecf1;
+    --muted: #8b95a5; --accent: #22c55e; --accent-dim: #14532d;
+    --good: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif; overflow: hidden; user-select: none; }
+  #canvas-container { position: absolute; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .topbar { position: absolute; top: 0; left: 0; right: 0; height: 52px;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+    background: linear-gradient(to bottom, rgba(12,14,18,0.92), transparent); z-index: 20; pointer-events: none; }
+  .topbar > * { pointer-events: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; letter-spacing: -0.02em; }
+  .brand span { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .badge { background: var(--accent-dim); color: var(--accent); font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 4px; letter-spacing: 0.03em; }
+  .panel { position: absolute; background: rgba(20,24,31,0.88); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px; z-index: 15; }
+  .left-panel { top: 70px; left: 16px; width: 220px; }
+  .right-panel { top: 70px; right: 16px; width: 240px; }
+  .panel h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 12px; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  button { background: #1c222d; border: 1px solid var(--border); color: var(--text);
+    font-family: inherit; font-size: 13px; font-weight: 500; padding: 9px 12px; border-radius: 8px;
+    cursor: pointer; transition: all 0.15s ease; }
+  button:hover { background: #252c3a; border-color: #3a4556; }
+  button.active { background: var(--accent-dim); border-color: var(--accent); color: #86efac; }
+  button:active { transform: scale(0.97); }
+  .slider-row { margin-bottom: 14px; }
+  .slider-row label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .slider-row label span { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 12px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 4px; }
+  .gauge { background: #0f1319; border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); }
+  .gauge-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.03em; }
+  .gauge-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .bar { height: 4px; background: #1c222d; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.12s ease; }
+  .status { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,24,31,0.9); border: 1px solid var(--border); border-radius: 20px;
+    padding: 8px 18px; font-size: 12px; color: var(--muted); z-index: 15;
+    display: flex; align-items: center; gap: 8px; }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+  .status.idle .dot { background: var(--warn); }
+  .help { position: absolute; bottom: 20px; right: 16px; font-size: 11px; color: var(--muted); z-index: 15; text-align: right; line-height: 1.5; }
+  @media (max-width: 700px) {
+    .left-panel, .right-panel { width: 170px; padding: 12px; }
+    .gauge-value { font-size: 18px; }
+    .btn-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div class="topbar">
+    <div class="brand">
+      Derailleur Teardown
+      <span>Rear 11-speed Cassette</span>
+      <div class="badge">FREE · OFFLINE</div>
+    </div>
+  </div>
+  <div class="panel left-panel">
+    <h3>Controls</h3>
+    <div class="btn-grid">
+      <button id="btn-shift-up">Shift ▲</button>
+      <button id="btn-shift-down">Shift ▼</button>
+      <button id="btn-explode">Explode</button>
+      <button id="btn-reset">Reset Cam</button>
+    </div>
+    <div class="slider-row">
+      <label>Cable Pull <span id="cable-val">0.0 mm</span></label>
+      <input type="range" id="cable" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="slider-row">
+      <label>Pedal RPM <span id="rpm-val">80</span></label>
+      <input type="range" id="rpm" min="0" max="160" value="80" step="5">
+    </div>
+  </div>
+  <div class="panel right-panel">
+    <h3>Live Data</h3>
+    <div class="gauge">
+      <div class="gauge-label">Current Gear</div>
+      <div class="gauge-value"><span id="g-gear">1</span><span class="gauge-unit">/ 11</span></div>
+      <div class="bar"><div id="bar-gear" style="width:9%"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Cage Lateral</div>
+      <div class="gauge-value"><span id="g-lateral">0.0</span><span class="gauge-unit">mm</span></div>
+      <div class="bar"><div id="bar-lateral" style="width:0%"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Chain Angle</div>
+      <div class="gauge-value"><span id="g-angle">0.0</span><span class="gauge-unit">°</span></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Sprocket Teeth</div>
+      <div class="gauge-value" style="font-size:16px" id="g-teeth">11T</div>
+    </div>
+  </div>
+  <div class="status" id="status">
+    <div class="dot"></div>
+    <span id="status-text">Interactive · Drag to orbit</span>
+  </div>
+  <div class="help">
+    Drag to orbit · Scroll to zoom<br>
+    Idle 8s → auto tour resumes
+  </div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── State ──────────────────────────────────
+const state = {
+  gear: 1,              // 1..11
+  targetGear: 1,
+  cable: 0,             // 0..1
+  rpm: 80,
+  exploded: false,
+  lastTime: performance.now(),
+  idleTimer: 0,
+  autoTour: false,
+  tourT: 0,
+  jockeyAngle: 0,
+};
+
+// Real-ish cassette teeth (11-speed compact)
+const TEETH = [11, 12, 13, 14, 16, 18, 20, 22, 25, 28, 32];
+const SPROCKET_SPACING = 0.42; // scene units between sprockets
+const SCALE = 0.018;
+
+// ── Scene ──────────────────────────────────
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c0e12);
+scene.fog = new THREE.Fog(0x0c0e12, 14, 36);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 80);
+camera.position.set(5.5, 2.8, 4.2);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.target.set(0.6, 0.4, 0);
+controls.minDistance = 2;
+controls.maxDistance = 16;
+
+// Lights
+scene.add(new THREE.AmbientLight(0x404860, 0.5));
+const key = new THREE.DirectionalLight(0xfff5e8, 1.5);
+key.position.set(5, 9, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1; key.shadow.camera.far = 25;
+key.shadow.camera.left = -7; key.shadow.camera.right = 7;
+key.shadow.camera.top = 7; key.shadow.camera.bottom = -7;
+key.shadow.bias = -0.0003;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x88aaff, 0.4).translateX(-4).translateY(3).translateZ(-3));
+scene.add(new THREE.DirectionalLight(0xffaa66, 0.3).translateZ(-6));
+
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(10, 64),
+  new THREE.MeshStandardMaterial({ color: 0x12151c, roughness: 0.9, metalness: 0.05 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -1.4;
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(14, 28, 0x1e2530, 0x161b24);
+grid.position.y = -1.38;
+scene.add(grid);
+
+// ── Materials ──────────────────────────────
+const mat = {
+  black: new THREE.MeshStandardMaterial({ color: 0x1a1e26, roughness: 0.45, metalness: 0.7 }),
+  silver: new THREE.MeshStandardMaterial({ color: 0xb0b8c4, roughness: 0.3, metalness: 0.9 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x2a303c, roughness: 0.5, metalness: 0.75 }),
+  accent: new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.4, metalness: 0.5, emissive: 0x14532d, emissiveIntensity: 0.2 }),
+  chain: new THREE.MeshStandardMaterial({ color: 0x8a929e, roughness: 0.35, metalness: 0.85 }),
+  rubber: new THREE.MeshStandardMaterial({ color: 0x111318, roughness: 0.85, metalness: 0.1 }),
+};
+
+function cyl(r, h, m, segs = 24) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segs), m);
+  mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+}
+function box(w, h, d, m) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+  mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+}
+
+// ── Cassette ──────────────────────────────
+const cassette = new THREE.Group();
+scene.add(cassette);
+cassette.position.set(0, 0.3, 0);
+
+const sprockets = [];
+TEETH.forEach((t, i) => {
+  const radius = 0.18 + t * 0.018;
+  const s = cyl(radius, 0.09, i % 2 === 0 ? mat.silver : mat.dark, 48);
+  s.rotation.x = Math.PI / 2;
+  s.position.z = -i * SPROCKET_SPACING;
+  // teeth hint (outer ring)
+  const ring = cyl(radius + 0.02, 0.02, mat.black, 32);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.z = -i * SPROCKET_SPACING;
+  cassette.add(s);
+  cassette.add(ring);
+  sprockets.push({ mesh: s, teeth: t, z: -i * SPROCKET_SPACING, radius });
+});
+
+// Freehub body
+const freehub = cyl(0.22, 0.15, mat.black, 24);
+freehub.rotation.x = Math.PI / 2;
+freehub.position.z = 0.35;
+cassette.add(freehub);
+
+// ── Derailleur parallelogram + cage ────────
+const derailleur = new THREE.Group();
+scene.add(derailleur);
+derailleur.position.set(0.15, -0.55, 0.1);
+
+// Mount / B-knuckle
+const bKnuckle = box(0.35, 0.22, 0.28, mat.black);
+bKnuckle.position.set(0, 0.55, 0);
+derailleur.add(bKnuckle);
+
+// Parallelogram links
+const linkA = box(0.08, 0.85, 0.06, mat.silver);
+linkA.position.set(-0.12, 0.15, 0.08);
+derailleur.add(linkA);
+const linkB = box(0.08, 0.85, 0.06, mat.silver);
+linkB.position.set(0.12, 0.15, -0.08);
+derailleur.add(linkB);
+
+// P-knuckle (cage pivot)
+const pKnuckle = box(0.32, 0.2, 0.26, mat.black);
+pKnuckle.position.set(0, -0.35, 0);
+derailleur.add(pKnuckle);
+
+// Cage plates
+const cageOuter = box(0.06, 1.35, 0.35, mat.dark);
+cageOuter.position.set(0.18, -1.05, 0);
+derailleur.add(cageOuter);
+const cageInner = box(0.06, 1.35, 0.35, mat.dark);
+cageInner.position.set(-0.18, -1.05, 0);
+derailleur.add(cageInner);
+
+// Jockey wheels
+const jockeyUpper = cyl(0.22, 0.08, mat.accent, 24);
+jockeyUpper.rotation.x = Math.PI / 2;
+jockeyUpper.position.set(0, -0.55, 0);
+derailleur.add(jockeyUpper);
+
+const jockeyLower = cyl(0.22, 0.08, mat.accent, 24);
+jockeyLower.rotation.x = Math.PI / 2;
+jockeyLower.position.set(0, -1.55, 0);
+derailleur.add(jockeyLower);
+
+// Tension spring visual
+const spring = cyl(0.04, 0.5, mat.silver, 12);
+spring.position.set(0.28, -0.95, 0.12);
+derailleur.add(spring);
+
+// Cable anchor
+const cableAnchor = box(0.12, 0.1, 0.1, mat.accent);
+cableAnchor.position.set(-0.25, 0.55, 0.15);
+derailleur.add(cableAnchor);
+
+// ── Chain (simplified loop) ────────────────
+const chainGroup = new THREE.Group();
+scene.add(chainGroup);
+const chainLinks = [];
+for (let i = 0; i < 48; i++) {
+  const link = box(0.06, 0.04, 0.09, mat.chain);
+  chainGroup.add(link);
+  chainLinks.push(link);
+}
+
+// ── Kinematics ────────────────────────────
+function updateMechanism(dt) {
+  // Smooth gear transition
+  const targetZ = -((state.targetGear - 1) * SPROCKET_SPACING);
+  const currentZ = derailleur.position.z;
+  const newZ = THREE.MathUtils.lerp(currentZ, targetZ, 1 - Math.exp(-8 * dt));
+  derailleur.position.z = newZ;
+
+  // Lateral offset of cage from cassette center
+  const lateral = Math.abs(newZ) * 1000 * SCALE * 55; // rough mm
+  state.cable = (state.targetGear - 1) / 10;
+
+  // Parallelogram lean
+  const lean = (state.targetGear - 1) * 0.04;
+  linkA.rotation.z = lean;
+  linkB.rotation.z = lean;
+  pKnuckle.position.x = lean * 0.6;
+
+  // Cage rotation (slight)
+  cageOuter.rotation.z = -lean * 0.5;
+  cageInner.rotation.z = -lean * 0.5;
+
+  // Jockey spin from pedal rpm
+  state.jockeyAngle += (state.rpm / 60) * Math.PI * 2 * dt * 2.2;
+  jockeyUpper.rotation.z = state.jockeyAngle;
+  jockeyLower.rotation.z = -state.jockeyAngle * 1.1;
+
+  // Exploded offsets
+  const exp = state.exploded ? 1 : 0;
+  jockeyUpper.position.y = -0.55 - exp * 0.7;
+  jockeyLower.position.y = -1.55 - exp * 1.1;
+  cageOuter.position.x = 0.18 + exp * 0.9;
+  cageInner.position.x = -0.18 - exp * 0.9;
+  pKnuckle.position.y = -0.35 - exp * 0.4;
+  bKnuckle.position.y = 0.55 + exp * 0.5;
+
+  // Simple chain path (upper run + lower run + around jockeys)
+  const gearIdx = state.targetGear - 1;
+  const sprocket = sprockets[gearIdx];
+  const sx = 0;
+  const sy = 0.3;
+  const sz = sprocket.z;
+  const jr = 0.22;
+
+  for (let i = 0; i < chainLinks.length; i++) {
+    const t = i / chainLinks.length;
+    let x, y, z;
+    if (t < 0.35) {
+      // top run from cassette to upper jockey
+      const u = t / 0.35;
+      x = THREE.MathUtils.lerp(sx, derailleur.position.x, u);
+      y = THREE.MathUtils.lerp(sy + sprocket.radius, derailleur.position.y - 0.55 + jr, u);
+      z = THREE.MathUtils.lerp(sz, derailleur.position.z, u);
+    } else if (t < 0.5) {
+      // around upper jockey
+      const u = (t - 0.35) / 0.15;
+      const a = -Math.PI * 0.5 + u * Math.PI;
+      x = derailleur.position.x + Math.cos(a) * jr;
+      y = derailleur.position.y - 0.55 + Math.sin(a) * jr;
+      z = derailleur.position.z;
+    } else if (t < 0.7) {
+      // down the cage
+      const u = (t - 0.5) / 0.2;
+      x = derailleur.position.x;
+      y = THREE.MathUtils.lerp(derailleur.position.y - 0.55 - jr, derailleur.position.y - 1.55 + jr, u);
+      z = derailleur.position.z;
+    } else if (t < 0.85) {
+      // around lower jockey
+      const u = (t - 0.7) / 0.15;
+      const a = Math.PI * 0.5 + u * Math.PI;
+      x = derailleur.position.x + Math.cos(a) * jr * 0.9;
+      y = derailleur.position.y - 1.55 + Math.sin(a) * jr * 0.9;
+      z = derailleur.position.z;
+    } else {
+      // return to cassette bottom
+      const u = (t - 0.85) / 0.15;
+      x = THREE.MathUtils.lerp(derailleur.position.x, sx, u);
+      y = THREE.MathUtils.lerp(derailleur.position.y - 1.55 - jr, sy - sprocket.radius * 0.7, u);
+      z = THREE.MathUtils.lerp(derailleur.position.z, sz, u);
+    }
+    chainLinks[i].position.set(x, y, z);
+    chainLinks[i].visible = !state.exploded || t < 0.6;
+  }
+
+  // Highlight current sprocket
+  sprockets.forEach((s, i) => {
+    s.mesh.material = (i === gearIdx) ? mat.accent : (i % 2 === 0 ? mat.silver : mat.dark);
+  });
+
+  return {
+    lateral: Math.abs(newZ / SPROCKET_SPACING) * 3.8, // approx mm
+    angle: lean * 57.3,
+    teeth: TEETH[gearIdx],
+  };
+}
+
+// ── UI ────────────────────────────────────
+const btnUp = document.getElementById('btn-shift-up');
+const btnDown = document.getElementById('btn-shift-down');
+const btnExplode = document.getElementById('btn-explode');
+const btnReset = document.getElementById('btn-reset');
+const cableSlider = document.getElementById('cable');
+const rpmSlider = document.getElementById('rpm');
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('status-text');
+
+function setGear(g) {
+  state.targetGear = Math.max(1, Math.min(11, g));
+  state.gear = state.targetGear;
+  cableSlider.value = ((state.targetGear - 1) / 10) * 100;
+  document.getElementById('cable-val').textContent = (state.targetGear - 1) * 2.8 + ' mm';
+  resetIdle();
+}
+
+btnUp.addEventListener('click', () => setGear(state.targetGear + 1));
+btnDown.addEventListener('click', () => setGear(state.targetGear - 1));
+btnExplode.addEventListener('click', () => {
+  state.exploded = !state.exploded;
+  btnExplode.classList.toggle('active', state.exploded);
+  btnExplode.textContent = state.exploded ? 'Assemble' : 'Explode';
+  resetIdle();
+});
+btnReset.addEventListener('click', () => {
+  camera.position.set(5.5, 2.8, 4.2);
+  controls.target.set(0.6, 0.4, 0);
+  resetIdle();
+});
+cableSlider.addEventListener('input', () => {
+  const v = +cableSlider.value / 100;
+  setGear(Math.round(v * 10) + 1);
+});
+rpmSlider.addEventListener('input', () => {
+  state.rpm = +rpmSlider.value;
+  document.getElementById('rpm-val').textContent = state.rpm;
+  resetIdle();
+});
+
+function resetIdle() {
+  state.idleTimer = 0;
+  state.autoTour = false;
+  statusEl.classList.remove('idle');
+  statusText.textContent = 'Interactive · Drag to orbit';
+}
+['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach(ev => {
+  window.addEventListener(ev, resetIdle, { passive: true });
+});
+
+function updateAutoTour(dt) {
+  if (!state.autoTour) return;
+  state.tourT += dt * 0.18;
+  const r = 6.2;
+  camera.position.x = Math.cos(state.tourT) * r + 0.8;
+  camera.position.z = Math.sin(state.tourT) * r * 0.7;
+  camera.position.y = 2.2 + Math.sin(state.tourT * 0.5) * 0.8;
+  controls.target.set(0.4, 0.2, -1.5);
+  controls.update();
+}
+
+// ── Loop ───────────────────────────────────
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min((now - state.lastTime) / 1000, 0.05);
+  state.lastTime = now;
+
+  state.idleTimer += dt;
+  if (state.idleTimer > 8 && !state.autoTour) {
+    state.autoTour = true;
+    statusEl.classList.add('idle');
+    statusText.textContent = 'Auto tour · Click to take control';
+  }
+
+  const kin = updateMechanism(dt);
+
+  document.getElementById('g-gear').textContent = state.targetGear;
+  document.getElementById('bar-gear').style.width = (state.targetGear / 11 * 100) + '%';
+  document.getElementById('g-lateral').textContent = kin.lateral.toFixed(1);
+  document.getElementById('bar-lateral').style.width = (kin.lateral / 40 * 100) + '%';
+  document.getElementById('g-angle').textContent = kin.angle.toFixed(1);
+  document.getElementById('g-teeth').textContent = kin.teeth + 'T';
+
+  if (state.autoTour) updateAutoTour(dt);
+  else controls.update();
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+updateMechanism(0.016);
+animate(performance.now());
+</script>
+</body>
+</html>
