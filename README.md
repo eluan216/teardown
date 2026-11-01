@@ -2,26 +2,28 @@
 
 A Claude Code skill that turns any machine into a 3D simulator you can take apart.
 
-**Also includes a free, fully offline standalone simulator** that runs in any browser with zero install.
+**Also includes free, fully offline standalone simulators** that run in any browser with zero install.
 
 ---
 
-## Free Standalone Simulator (No Claude Code)
+## Free Standalone Simulators (No Claude Code)
 
-Open this file directly in your browser:
+Open any of these files directly in your browser (click Raw, or download):
 
-**[standalone/engine-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/engine-teardown.html)**
+| Simulator | File | What it shows |
+|-----------|------|---------------|
+| **Single-Cylinder Engine** | [engine-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/engine-teardown.html) | 4-stroke slider-crank, pressure gauge, cutaway, explode |
+| **Bicycle Derailleur** | [derailleur-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/derailleur-teardown.html) | 11-speed cassette, parallelogram, jockey wheels, shifting |
+| **Watch Escapement** | [escapement-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/escapement-teardown.html) | Swiss lever, balance wheel, hairspring, impulse phases |
 
-Features:
-- Interactive single-cylinder 4-stroke engine
-- Live gauges (crank angle, piston position, approx. pressure, cycle phase)
-- Exploded view & cutaway (glass cylinder)
-- Speed + throttle controls
-- Orbit / zoom
-- Auto-tour when idle
-- Pure HTML + Three.js — works offline after first load of the CDN scripts
+All three share the same features:
+- Live gauges driven by the real kinematics
+- Exploded / assembled views
+- Orbit + zoom controls
+- Auto-tour after a few seconds of inactivity
+- Pure HTML + Three.js — works offline after the first CDN load
 
-Just download the HTML or open the raw file. No build step, no Node, no Claude.
+No build step, no Node, no Claude required.
 
 ---
 
