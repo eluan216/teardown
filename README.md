@@ -2,6 +2,31 @@
 
 A Claude Code skill that turns any machine into a 3D simulator you can take apart.
 
+**Also includes a free, fully offline standalone simulator** that runs in any browser with zero install.
+
+---
+
+## Free Standalone Simulator (No Claude Code)
+
+Open this file directly in your browser:
+
+**[standalone/engine-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/engine-teardown.html)**
+
+Features:
+- Interactive single-cylinder 4-stroke engine
+- Live gauges (crank angle, piston position, approx. pressure, cycle phase)
+- Exploded view & cutaway (glass cylinder)
+- Speed + throttle controls
+- Orbit / zoom
+- Auto-tour when idle
+- Pure HTML + Three.js — works offline after first load of the CDN scripts
+
+Just download the HTML or open the raw file. No build step, no Node, no Claude.
+
+---
+
+## Original Claude Code Skill
+
 Ask how something works. Claude builds it as one offline HTML page: the machine runs in the middle, every panel around it reads the real numbers, a button opens the part doing the work, and when nobody touches it the page tours itself.
 
 ![Mellis HB-7 robotic bee simulator](docs/bee.gif)
@@ -10,7 +35,7 @@ Ask how something works. Claude builds it as one offline HTML page: the machine 
 |---|---|
 | ![Telson SC-8 robotic scorpion](docs/scorpion.gif) | ![Pelagos OC-8 robotic octopus](docs/octopus.gif) |
 
-## Install
+### Install
 
 ```
 npx skills add elvarofficial/teardown -g -a claude-code
@@ -24,7 +49,7 @@ npm install && npx playwright install chromium
 
 You need Node.js 20 or newer. For the video you also need `ffmpeg`, and for the sound Python 3.
 
-## Use
+### Use
 
 Ask Claude Code in plain words:
 
@@ -42,7 +67,7 @@ node sims/build.mjs cessna-live
 node sims/build.mjs strandbeest-live
 ```
 
-## What is inside
+### What is inside
 
 | | |
 |---|---|
@@ -52,6 +77,7 @@ node sims/build.mjs strandbeest-live
 | `sims/build.mjs` | Bundles a machine into one HTML file, three.js and fonts inlined. |
 | `sims/capture.mjs` | Renders the film frame by frame to a 60 fps mp4, or to review sheets of stills. |
 | `sfx/`, `run_sfx.py` | Procedural sound on the film's timeline, mastered to −14 LUFS. |
+| `standalone/` | **Free offline simulators** that need nothing but a browser. |
 
 ## Credits
 
