@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mechanical Watch Escapement — Free Offline Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #0c0e12; --panel: #14181f; --border: #252b36; --text: #e8ecf1;
+    --muted: #8b95a5; --accent: #f59e0b; --accent-dim: #78350f;
+    --good: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif; overflow: hidden; user-select: none; }
+  #canvas-container { position: absolute; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .topbar { position: absolute; top: 0; left: 0; right: 0; height: 52px;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+    background: linear-gradient(to bottom, rgba(12,14,18,0.92), transparent); z-index: 20; pointer-events: none; }
+  .topbar > * { pointer-events: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; letter-spacing: -0.02em; }
+  .brand span { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .badge { background: var(--accent-dim); color: var(--accent); font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 4px; letter-spacing: 0.03em; }
+  .panel { position: absolute; background: rgba(20,24,31,0.88); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px; z-index: 15; }
+  .left-panel { top: 70px; left: 16px; width: 220px; }
+  .right-panel { top: 70px; right: 16px; width: 240px; }
+  .panel h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 12px; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  button { background: #1c222d; border: 1px solid var(--border); color: var(--text);
+    font-family: inherit; font-size: 13px; font-weight: 500; padding: 9px 12px; border-radius: 8px;
+    cursor: pointer; transition: all 0.15s ease; }
+  button:hover { background: #252c3a; border-color: #3a4556; }
+  button.active { background: var(--accent-dim); border-color: var(--accent); color: #fcd34d; }
+  button:active { transform: scale(0.97); }
+  .slider-row { margin-bottom: 14px; }
+  .slider-row label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .slider-row label span { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 12px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 4px; }
+  .gauge { background: #0f1319; border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); }
+  .gauge-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.03em; }
+  .gauge-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .bar { height: 4px; background: #1c222d; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.08s linear; }
+  .status { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,24,31,0.9); border: 1px solid var(--border); border-radius: 20px;
+    padding: 8px 18px; font-size: 12px; color: var(--muted); z-index: 15;
+    display: flex; align-items: center; gap: 8px; }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+  .status.idle .dot { background: var(--warn); }
+  .help { position: absolute; bottom: 20px; right: 16px; font-size: 11px; color: var(--muted); z-index: 15; text-align: right; line-height: 1.5; }
+  @media (max-width: 700px) {
+    .left-panel, .right-panel { width: 170px; padding: 12px; }
+    .gauge-value { font-size: 18px; }
+    .btn-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div class="topbar">
+    <div class="brand">
+      Escapement Teardown
+      <span>Swiss Lever · 4 Hz</span>
+      <div class="badge">FREE · OFFLINE</div>
+    </div>
+  </div>
+  <div class="panel left-panel">
+    <h3>Controls</h3>
+    <div class="btn-grid">
+      <button id="btn-run" class="active">Running</button>
+      <button id="btn-explode">Explode</button>
+      <button id="btn-slow">Slow-Mo</button>
+      <button id="btn-reset">Reset Cam</button>
+    </div>
+    <div class="slider-row">
+      <label>Beat Rate <span id="rate-val">4.00 Hz</span></label>
+      <input type="range" id="rate" min="200" max="600" value="400" step="10">
+    </div>
+    <div class="slider-row">
+      <label>Amplitude <span id="amp-val">270°</span></label>
+      <input type="range" id="amp" min="120" max="320" value="270" step="5">
+    </div>
+  </div>
+  <div class="panel right-panel">
+    <h3>Live Data</h3>
+    <div class="gauge">
+      <div class="gauge-label">Balance Angle</div>
+      <div class="gauge-value"><span id="g-angle">0</span><span class="gauge-unit">°</span></div>
+      <div class="bar"><div id="bar-angle" style="width:50%"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Impulse Phase</div>
+      <div class="gauge-value" style="font-size:15px" id="g-phase">Lock</div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Escape Wheel</div>
+      <div class="gauge-value"><span id="g-wheel">0</span><span class="gauge-unit">°</span></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Beats / Hour</div>
+      <div class="gauge-value" style="font-size:18px" id="g-bph">28800</div>
+    </div>
+  </div>
+  <div class="status" id="status">
+    <div class="dot"></div>
+    <span id="status-text">Interactive · Drag to orbit</span>
+  </div>
+  <div class="help">
+    Drag to orbit · Scroll to zoom<br>
+    Idle 8s → auto tour resumes
+  </div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── State ──────────────────────────────────
+const state = {
+  running: true,
+  slowMo: false,
+  exploded: false,
+  frequency: 4.0,       // Hz (half-cycles per second → 4 Hz = 28800 bph)
+  amplitude: 270 * Math.PI / 180, // rad peak-to-peak / 2
+  t: 0,
+  lastTime: performance.now(),
+  idleTimer: 0,
+  autoTour: false,
+  tourT: 0,
+};
+
+// ── Scene ──────────────────────────────────
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c0e12);
+scene.fog = new THREE.Fog(0x0c0e12, 10, 28);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.05, 50);
+camera.position.set(3.8, 2.6, 3.4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0.15, 0);
+controls.minDistance = 1.5;
+controls.maxDistance = 12;
+
+// Lights
+scene.add(new THREE.AmbientLight(0x505870, 0.55));
+const key = new THREE.DirectionalLight(0xfff8f0, 1.55);
+key.position.set(4, 7, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 20;
+key.shadow.camera.left = -5; key.shadow.camera.right = 5;
+key.shadow.camera.top = 5; key.shadow.camera.bottom = -5;
+key.shadow.bias = -0.00025;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0xaaccff, 0.4).translateX(-3).translateY(2).translateZ(-2));
+scene.add(new THREE.DirectionalLight(0xffcc88, 0.25).translateZ(-5));
+
+// Ground / plate
+const plate = new THREE.Mesh(
+  new THREE.CylinderGeometry(2.8, 2.8, 0.08, 64),
+  new THREE.MeshStandardMaterial({ color: 0x1a1e28, roughness: 0.6, metalness: 0.4 })
+);
+plate.position.y = -0.55;
+plate.receiveShadow = true;
+scene.add(plate);
+
+const grid = new THREE.GridHelper(8, 16, 0x1e2530, 0x161b24);
+grid.position.y = -0.5;
+scene.add(grid);
+
+// ── Materials ──────────────────────────────
+const mat = {
+  gold: new THREE.MeshStandardMaterial({ color: 0xd4a84b, roughness: 0.25, metalness: 0.95 }),
+  steel: new THREE.MeshStandardMaterial({ color: 0xc8d0dc, roughness: 0.2, metalness: 0.95 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x2a303c, roughness: 0.4, metalness: 0.8 }),
+  ruby: new THREE.MeshStandardMaterial({ color: 0x9b1b30, roughness: 0.15, metalness: 0.3, emissive: 0x4a0a12, emissiveIntensity: 0.15 }),
+  accent: new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.7, emissive: 0x78350f, emissiveIntensity: 0.2 }),
+  black: new THREE.MeshStandardMaterial({ color: 0x12151c, roughness: 0.5, metalness: 0.6 }),
+};
+
+function cyl(r, h, m, segs = 32) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segs), m);
+  mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+}
+function box(w, h, d, m) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+  mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
+}
+
+// ── Balance Wheel + Hairspring ──────────────
+const balanceGroup = new THREE.Group();
+scene.add(balanceGroup);
+balanceGroup.position.set(0.9, 0.2, 0);
+
+// Balance rim
+const balanceRim = cyl(0.72, 0.08, mat.gold, 64);
+balanceGroup.add(balanceRim);
+
+// Balance arms
+const arm1 = box(1.35, 0.06, 0.08, mat.gold);
+balanceGroup.add(arm1);
+const arm2 = box(0.08, 0.06, 1.0, mat.gold);
+balanceGroup.add(arm2);
+
+// Timing screws (decorative)
+for (let i = 0; i < 8; i++) {
+  const a = (i / 8) * Math.PI * 2;
+  const screw = cyl(0.04, 0.1, mat.steel, 12);
+  screw.position.set(Math.cos(a) * 0.62, 0.06, Math.sin(a) * 0.62);
+  balanceGroup.add(screw);
+}
+
+// Balance staff
+const staff = cyl(0.035, 0.55, mat.steel, 16);
+staff.position.y = -0.1;
+balanceGroup.add(staff);
+
+// Hairspring (approximate spiral)
+const springGroup = new THREE.Group();
+balanceGroup.add(springGroup);
+const springMat = new THREE.LineBasicMaterial({ color: 0xb0b8c4 });
+const springPts = [];
+for (let i = 0; i < 220; i++) {
+  const t = i / 220;
+  const turns = 4.5;
+  const r = 0.12 + t * 0.48;
+  const a = t * turns * Math.PI * 2;
+  springPts.push(new THREE.Vector3(Math.cos(a) * r, -0.18, Math.sin(a) * r));
+}
+const springGeo = new THREE.BufferGeometry().setFromPoints(springPts);
+const springLine = new THREE.Line(springGeo, springMat);
+springGroup.add(springLine);
+
+// Collet
+const collet = cyl(0.08, 0.04, mat.steel, 16);
+collet.position.y = -0.18;
+balanceGroup.add(collet);
+
+// ── Escape Wheel ──────────────────────────
+const escapeGroup = new THREE.Group();
+scene.add(escapeGroup);
+escapeGroup.position.set(-0.55, 0.15, 0);
+
+const EW_TEETH = 15;
+const ewRadius = 0.55;
+
+// Hub
+escapeGroup.add(cyl(0.12, 0.1, mat.steel, 24));
+
+// Teeth
+const teeth = [];
+for (let i = 0; i < EW_TEETH; i++) {
+  const a = (i / EW_TEETH) * Math.PI * 2;
+  const tooth = box(0.08, 0.06, 0.22, mat.steel);
+  tooth.position.set(Math.cos(a) * (ewRadius - 0.05), 0, Math.sin(a) * (ewRadius - 0.05));
+  tooth.rotation.y = -a;
+  // club tooth shape approx by offset
+  tooth.position.x += Math.cos(a + 0.3) * 0.04;
+  tooth.position.z += Math.sin(a + 0.3) * 0.04;
+  escapeGroup.add(tooth);
+  teeth.push(tooth);
+}
+
+// Rim
+const ewRim = new THREE.Mesh(
+  new THREE.TorusGeometry(ewRadius * 0.75, 0.025, 8, 48),
+  mat.dark
+);
+ewRim.rotation.x = Math.PI / 2;
+escapeGroup.add(ewRim);
+
+// ── Lever / Pallet Fork ──────────────────
+const leverGroup = new THREE.Group();
+scene.add(leverGroup);
+leverGroup.position.set(0.15, 0.18, 0);
+
+// Lever body
+const leverBody = box(0.85, 0.05, 0.12, mat.steel);
+leverGroup.add(leverBody);
+
+// Fork notch
+const fork = box(0.18, 0.05, 0.22, mat.dark);
+fork.position.x = 0.48;
+leverGroup.add(fork);
+
+// Entry pallet (ruby)
+const entryPallet = box(0.1, 0.06, 0.14, mat.ruby);
+entryPallet.position.set(-0.32, 0.02, 0.12);
+entryPallet.rotation.y = 0.35;
+leverGroup.add(entryPallet);
+
+// Exit pallet
+const exitPallet = box(0.1, 0.06, 0.14, mat.ruby);
+exitPallet.position.set(-0.32, 0.02, -0.12);
+exitPallet.rotation.y = -0.35;
+leverGroup.add(exitPallet);
+
+// Banking pins visual
+const bank1 = cyl(0.025, 0.12, mat.accent, 10);
+bank1.position.set(0.55, 0.08, 0.18);
+leverGroup.add(bank1);
+const bank2 = cyl(0.025, 0.12, mat.accent, 10);
+bank2.position.set(0.55, 0.08, -0.18);
+leverGroup.add(bank2);
+
+// Impulse pin on roller (attached to balance)
+const roller = cyl(0.14, 0.05, mat.dark, 20);
+roller.position.set(0.9, 0.08, 0);
+scene.add(roller);
+const impulsePin = cyl(0.03, 0.1, mat.accent, 10);
+impulsePin.position.set(0.9 + 0.1, 0.12, 0);
+scene.add(impulsePin);
+
+// ── Bridge / jewels (decorative) ───────────
+const bridge = box(2.4, 0.06, 0.35, mat.dark);
+bridge.position.set(0.2, 0.55, 0);
+scene.add(bridge);
+const jewel1 = cyl(0.08, 0.04, mat.ruby, 16);
+jewel1.position.set(0.9, 0.58, 0);
+scene.add(jewel1);
+const jewel2 = cyl(0.08, 0.04, mat.ruby, 16);
+jewel2.position.set(-0.55, 0.58, 0);
+scene.add(jewel2);
+
+// ── Kinematics (simplified Swiss lever) ────
+function updateEscapement(dt) {
+  const speed = state.slowMo ? 0.15 : 1.0;
+  if (state.running) state.t += dt * speed;
+
+  // Balance oscillates as damped harmonic (we ignore damping for steady state)
+  const omega = state.frequency * Math.PI * 2; // rad/s angular freq of oscillation
+  const balAngle = state.amplitude * Math.sin(omega * state.t);
+
+  balanceGroup.rotation.y = balAngle;
+  springGroup.rotation.y = -balAngle * 0.15; // slight wind-up illusion
+
+  // Impulse pin follows balance
+  const pinR = 0.12;
+  impulsePin.position.x = 0.9 + Math.sin(balAngle) * pinR;
+  impulsePin.position.z = Math.cos(balAngle) * pinR * 0.3;
+  roller.rotation.y = balAngle;
+
+  // Lever angle – follows a square-ish wave locked to balance extreme
+  // Simplified: lever flips near the zero crossing with a little lead
+  const phase = (omega * state.t) % (Math.PI * 2);
+  let leverAngle = 0;
+  let phaseName = 'Supplementary Arc';
+
+  // Very approximate sequencing for visual
+  const norm = (phase / (Math.PI * 2)); // 0..1
+  if (norm < 0.08 || norm > 0.92) {
+    leverAngle = THREE.MathUtils.lerp(0.18, -0.18, (norm < 0.5 ? norm + 0.08 : norm - 0.92) / 0.16);
+    phaseName = 'Impulse';
+  } else if (norm < 0.5) {
+    leverAngle = -0.18;
+    phaseName = 'Lock (Exit)';
+  } else {
+    leverAngle = 0.18;
+    phaseName = 'Lock (Entry)';
+  }
+
+  // Smooth the lever a bit
+  leverGroup.rotation.y = THREE.MathUtils.lerp(leverGroup.rotation.y || 0, leverAngle, 0.35);
+
+  // Escape wheel advances in steps (one tooth per half-cycle)
+  const steps = Math.floor(state.t * state.frequency * 2);
+  const toothAngle = (steps / EW_TEETH) * Math.PI * 2;
+  // Add a little drop animation
+  const drop = Math.max(0, Math.sin(phase * 2)) * 0.04;
+  escapeGroup.rotation.y = -toothAngle - drop;
+
+  // Exploded view
+  const exp = state.exploded ? 1 : 0;
+  balanceGroup.position.y = 0.2 + exp * 1.1;
+  escapeGroup.position.y = 0.15 + exp * 0.6;
+  escapeGroup.position.x = -0.55 - exp * 0.9;
+  leverGroup.position.y = 0.18 + exp * 0.85;
+  leverGroup.position.z = exp * 0.7;
+  bridge.position.y = 0.55 + exp * 1.4;
+
+  return {
+    balDeg: balAngle * 180 / Math.PI,
+    phase: phaseName,
+    wheelDeg: (toothAngle * 180 / Math.PI) % 360,
+    bph: Math.round(state.frequency * 2 * 3600),
+  };
+}
+
+// ── UI ────────────────────────────────────
+const btnRun = document.getElementById('btn-run');
+const btnExplode = document.getElementById('btn-explode');
+const btnSlow = document.getElementById('btn-slow');
+const btnReset = document.getElementById('btn-reset');
+const rateSlider = document.getElementById('rate');
+const ampSlider = document.getElementById('amp');
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('status-text');
+
+btnRun.addEventListener('click', () => {
+  state.running = !state.running;
+  btnRun.classList.toggle('active', state.running);
+  btnRun.textContent = state.running ? 'Running' : 'Paused';
+  resetIdle();
+});
+btnExplode.addEventListener('click', () => {
+  state.exploded = !state.exploded;
+  btnExplode.classList.toggle('active', state.exploded);
+  btnExplode.textContent = state.exploded ? 'Assemble' : 'Explode';
+  resetIdle();
+});
+btnSlow.addEventListener('click', () => {
+  state.slowMo = !state.slowMo;
+  btnSlow.classList.toggle('active', state.slowMo);
+  resetIdle();
+});
+btnReset.addEventListener('click', () => {
+  camera.position.set(3.8, 2.6, 3.4);
+  controls.target.set(0, 0.15, 0);
+  resetIdle();
+});
+rateSlider.addEventListener('input', () => {
+  state.frequency = +rateSlider.value / 100;
+  document.getElementById('rate-val').textContent = state.frequency.toFixed(2) + ' Hz';
+  resetIdle();
+});
+ampSlider.addEventListener('input', () => {
+  state.amplitude = (+ampSlider.value * Math.PI / 180) / 2;
+  document.getElementById('amp-val').textContent = ampSlider.value + '°';
+  resetIdle();
+});
+
+function resetIdle() {
+  state.idleTimer = 0;
+  state.autoTour = false;
+  statusEl.classList.remove('idle');
+  statusText.textContent = 'Interactive · Drag to orbit';
+}
+['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach(ev => {
+  window.addEventListener(ev, resetIdle, { passive: true });
+});
+
+function updateAutoTour(dt) {
+  if (!state.autoTour) return;
+  state.tourT += dt * 0.16;
+  const r = 4.5;
+  camera.position.x = Math.cos(state.tourT) * r;
+  camera.position.z = Math.sin(state.tourT) * r;
+  camera.position.y = 2.0 + Math.sin(state.tourT * 0.45) * 0.7;
+  controls.target.set(0.1, 0.2, 0);
+  controls.update();
+}
+
+// ── Loop ───────────────────────────────────
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min((now - state.lastTime) / 1000, 0.05);
+  state.lastTime = now;
+
+  state.idleTimer += dt;
+  if (state.idleTimer > 8 && !state.autoTour) {
+    state.autoTour = true;
+    statusEl.classList.add('idle');
+    statusText.textContent = 'Auto tour · Click to take control';
+  }
+
+  const kin = updateEscapement(dt);
+
+  document.getElementById('g-angle').textContent = kin.balDeg.toFixed(0);
+  const norm = (kin.balDeg / (state.amplitude * 180 / Math.PI) + 1) / 2;
+  document.getElementById('bar-angle').style.width = (norm * 100) + '%';
+  document.getElementById('g-phase').textContent = kin.phase;
+  document.getElementById('g-wheel').textContent = kin.wheelDeg.toFixed(0);
+  document.getElementById('g-bph').textContent = kin.bph;
+
+  // Color phase
+  const phaseEl = document.getElementById('g-phase');
+  if (kin.phase.includes('Impulse')) phaseEl.style.color = '#f59e0b';
+  else phaseEl.style.color = 'var(--text)';
+
+  if (state.autoTour) updateAutoTour(dt);
+  else controls.update();
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+updateEscapement(0.016);
+animate(performance.now());
+</script>
+</body>
+</html>
