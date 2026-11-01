@@ -1,975 +1,193 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>V8 · Four-Stroke</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>V8 Four-Stroke · Studio</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-  :root {
-    --bg: #f0f2f5; --panel: #ffffff; --border: #dde1e6; --text: #1a1d24;
-    --muted: #6b7280; --accent: #e11d48; --green: #059669; --amber: #d97706; --slate: #475569;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    width: 100%; height: 100%; background: var(--bg); color: var(--text);
-    font-family: 'Inter', system-ui, sans-serif; overflow: hidden; user-select: none;
-    -webkit-font-smoothing: antialiased;
-  }
-  #canvas-container { position: absolute; inset: 0; }
-  canvas { display: block; width: 100%; height: 100%; }
-
-  .topbar {
-    position: absolute; top: 0; left: 0; right: 0; height: 48px;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px;
-    background: linear-gradient(to bottom, rgba(240,242,245,0.98), rgba(240,242,245,0.7));
-    z-index: 40; pointer-events: none;
-  }
-  .topbar > * { pointer-events: auto; }
-  .title-block h1 { font-size: 14px; font-weight: 700; letter-spacing: -0.03em; }
-  .title-block h1 .red { color: var(--accent); }
-  .title-block .sub { font-size: 9px; color: var(--muted); font-weight: 500; margin-top: 1px; letter-spacing: 0.02em; }
-  .phase-legend { display: flex; gap: 14px; font-size: 10px; font-weight: 500; color: var(--muted); }
-  .phase-legend span { display: flex; align-items: center; gap: 4px; }
-  .phase-legend i { width: 10px; height: 3px; border-radius: 1px; display: inline-block; }
-
-  .left-panel {
-    position: absolute; top: 56px; left: 10px; width: 200px; z-index: 30;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .right-panel {
-    position: absolute; top: 56px; right: 10px; width: 190px; z-index: 30;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-    padding: 9px 11px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  }
-  .card-label {
-    font-size: 9px; font-weight: 600; letter-spacing: 0.05em;
-    text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
-  }
-  .rpm-display { display: flex; align-items: baseline; gap: 4px; }
-  .rpm-display .num {
-    font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 600;
-    letter-spacing: -0.04em; color: var(--accent); line-height: 1;
-  }
-  .rpm-display .unit { font-size: 9px; color: var(--muted); font-weight: 500; }
-  .rpm-bar { height: 3px; background: #e5e7eb; border-radius: 2px; margin-top: 6px; overflow: hidden; }
-  .rpm-bar > div { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.08s; }
-
-  .firing {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 2px;
-  }
-  .firing .cyl {
-    text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
-    padding: 4px 0; border-radius: 4px; background: #f3f4f6; color: var(--muted);
-    transition: all 0.1s; cursor: pointer;
-  }
-  .firing .cyl.active { background: var(--accent); color: #fff; box-shadow: 0 0 0 2px rgba(225,29,72,0.22); }
-  .firing .cyl.intake { background: #d1fae5; color: #047857; }
-  .firing .cyl.compression { background: #fef3c7; color: #b45309; }
-  .firing .cyl.power { background: #ffe4e6; color: #be123c; }
-  .firing .cyl.exhaust { background: #e2e8f0; color: #475569; }
-
-  .phase-name { font-size: 17px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 1px; }
-  .phase-name.intake { color: var(--green); }
-  .phase-name.compression { color: var(--amber); }
-  .phase-name.power { color: var(--accent); }
-  .phase-name.exhaust { color: var(--slate); }
-
-  .metric-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
-  .metric-row .val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; }
-  .metric-row .unit { font-size: 9px; color: var(--muted); margin-left: 2px; }
-  .metric-row .label { font-size: 10px; color: var(--muted); }
-  .bar-thin { height: 2.5px; background: #e5e7eb; border-radius: 2px; margin-top: 4px; overflow: hidden; }
-  .bar-thin > div { height: 100%; border-radius: 2px; transition: width 0.07s; }
-
-  .diagram { font-size: 9px; color: var(--slate); line-height: 1.35; }
-  .diagram .formula {
-    font-family: 'JetBrains Mono', monospace; font-size: 8px;
-    background: #f3f4f6; padding: 4px 6px; border-radius: 4px; margin-top: 4px;
-  }
-
-  .chart-box { height: 52px; position: relative; margin-top: 3px; }
-  .chart-box canvas { width: 100%; height: 100%; display: block; }
-
-  .bottom-bar {
-    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 6px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 5px 10px; box-shadow: 0 3px 14px rgba(0,0,0,0.07); z-index: 30;
-  }
-  .bottom-bar button {
-    background: transparent; border: none; font-family: inherit; font-size: 10px; font-weight: 600;
-    color: var(--text); padding: 5px 9px; border-radius: 5px; cursor: pointer; transition: background 0.1s;
-  }
-  .bottom-bar button:hover { background: #f3f4f6; }
-  .bottom-bar button.active { background: var(--accent); color: #fff; }
-  .bottom-bar button.secondary.active { background: #1e293b; color: #fff; }
-  .bottom-bar .sep { width: 1px; height: 14px; background: var(--border); }
-  .speed-control { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); font-weight: 500; }
-  .speed-control input[type=range] {
-    width: 70px; height: 2.5px; -webkit-appearance: none; appearance: none;
-    background: #e5e7eb; border-radius: 2px; outline: none;
-  }
-  .speed-control input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%;
-    background: var(--accent); cursor: pointer;
-  }
-  .speed-control .val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text); min-width: 44px; }
-
-  .cam-presets, .mode-presets, .overlay-presets {
-    position: absolute; z-index: 30; display: flex; gap: 3px;
-  }
-  .cam-presets { bottom: 12px; right: 10px; }
-  .mode-presets { bottom: 40px; right: 10px; }
-  .overlay-presets { bottom: 68px; right: 10px; flex-wrap: wrap; max-width: 160px; justify-content: flex-end; }
-  .cam-presets button, .mode-presets button, .overlay-presets button {
-    background: var(--panel); border: 1px solid var(--border); font-family: inherit;
-    font-size: 9px; font-weight: 600; color: var(--muted); padding: 4px 7px; border-radius: 4px;
-    cursor: pointer; letter-spacing: 0.02em;
-  }
-  .cam-presets button:hover, .mode-presets button:hover, .overlay-presets button:hover,
-  .cam-presets button.active, .mode-presets button.active, .overlay-presets button.active {
-    background: #1e293b; color: #fff; border-color: #1e293b;
-  }
-
-  .hint { position: absolute; bottom: 12px; left: 10px; font-size: 9px; color: var(--muted); z-index: 30; }
-  .label-3d {
-    position: absolute; font-size: 9px; font-weight: 500; color: #64748b;
-    pointer-events: none; white-space: nowrap; z-index: 25;
-    text-shadow: 0 0 4px #f0f2f5, 0 0 4px #f0f2f5;
-  }
-
-  @media (max-width: 900px) {
-    .left-panel, .right-panel { width: 150px; }
-    .rpm-display .num { font-size: 26px; }
-  }
-  @media (max-width: 640px) {
-    .left-panel, .right-panel { display: none; }
-  }
+:root{--fg:#15181d;--mut:#6b7482;--card:rgba(255,255,255,.9);--line:#dfe2e8;--acc:#e0262f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;overflow:hidden;background:#eceef1}
+body{color:var(--fg);font:12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif}
+#gl{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.card{flex:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 9px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.k{font-size:9px;letter-spacing:.09em;color:var(--mut);text-transform:uppercase;font-weight:600}
+#strip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:6px;right:6px;display:flex;gap:6px;overflow-x:auto;align-items:flex-start}
+#strip.off{display:none}
+.big{font-size:34px;font-weight:800;color:var(--acc);line-height:1;font-variant-numeric:tabular-nums}
+canvas.p{width:170px;height:92px;display:block;margin-top:3px}
+#chips{display:grid;grid-template-columns:repeat(8,22px);gap:3px;margin-top:4px}
+#chips button{padding:3px 0;border-radius:50%;height:22px;font-size:11px}
+#ctl{position:absolute;left:6px;right:6px;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);display:flex;flex-direction:column;gap:5px}
+.row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-weight:600;font-size:11px;letter-spacing:.04em;touch-action:manipulation;text-transform:uppercase}
+button.on{background:var(--fg);color:#fff;border-color:var(--fg)}
+button.red.on{background:var(--acc);border-color:var(--acc)}
+label{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--mut);text-transform:uppercase;font-weight:600}
+input[type=range]{width:84px;accent-color:#e0262f}
+#stk{font-size:20px;font-weight:800}#chk{font-size:9px;color:var(--mut);max-width:560px}
 </style>
 </head>
 <body>
-  <div id="canvas-container"></div>
-
-  <div class="topbar">
-    <div class="title-block">
-      <h1><span class="red">V8</span> · Four-Stroke</h1>
-      <div class="sub">90° CROSS-PLANE · FIRING 1-8-4-3-6-5-7-2 · 5.0 L</div>
-    </div>
-    <div class="phase-legend">
-      <span><i style="background:#059669"></i> AIR & FUEL</span>
-      <span><i style="background:#d97706"></i> COMPRESSED</span>
-      <span><i style="background:#e11d48"></i> COMBUSTION</span>
-      <span><i style="background:#64748b"></i> EXHAUST</span>
-    </div>
-    <div style="width:120px"></div>
-  </div>
-
-  <div class="left-panel">
-    <div class="card">
-      <div class="card-label">Crankshaft</div>
-      <div class="rpm-display">
-        <span class="num" id="rpm-num">2400</span>
-        <span class="unit">REV / MIN</span>
-      </div>
-      <div class="rpm-bar"><div id="rpm-bar" style="width:30%"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Firing Order · Click to Track</div>
-      <div class="firing" id="firing-row">
-        <div class="cyl" data-idx="0">1</div>
-        <div class="cyl" data-idx="1">8</div>
-        <div class="cyl" data-idx="2">4</div>
-        <div class="cyl" data-idx="3">3</div>
-        <div class="cyl" data-idx="4">6</div>
-        <div class="cyl" data-idx="5">5</div>
-        <div class="cyl" data-idx="6">7</div>
-        <div class="cyl" data-idx="7">2</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Slider-Crank</div>
-      <div class="diagram">
-        <svg width="170" height="48" viewBox="0 0 170 48">
-          <line x1="12" y1="34" x2="158" y2="34" stroke="#cbd5e1" stroke-width="1"/>
-          <circle cx="38" cy="34" r="12" fill="none" stroke="#94a3b8" stroke-width="1.2"/>
-          <circle cx="38" cy="34" r="2" fill="#64748b"/>
-          <line id="schem-rod" x1="38" y1="34" x2="100" y2="16" stroke="#1e293b" stroke-width="1.8"/>
-          <rect id="schem-piston" x="92" y="8" width="16" height="16" rx="1.5" fill="#e11d48" opacity="0.85"/>
-        </svg>
-        <div class="formula">s = r·cosθ + √(L² − r² sin²θ)</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Cross-Plane Crank</div>
-      <div class="diagram" style="text-align:center">
-        <svg width="120" height="70" viewBox="0 0 120 70">
-          <circle cx="60" cy="35" r="28" fill="none" stroke="#cbd5e1" stroke-width="1"/>
-          <g id="crank-schem">
-            <line x1="60" y1="35" x2="60" y2="10" stroke="#e11d48" stroke-width="2"/>
-            <line x1="60" y1="35" x2="85" y2="35" stroke="#1e293b" stroke-width="1.5"/>
-            <line x1="60" y1="35" x2="60" y2="60" stroke="#1e293b" stroke-width="1.5"/>
-            <line x1="60" y1="35" x2="35" y2="35" stroke="#1e293b" stroke-width="1.5"/>
-            <circle cx="60" cy="10" r="3" fill="#e11d48"/>
-            <circle cx="85" cy="35" r="2.5" fill="#64748b"/>
-            <circle cx="60" cy="60" r="2.5" fill="#64748b"/>
-            <circle cx="35" cy="35" r="2.5" fill="#64748b"/>
-          </g>
-          <circle cx="60" cy="35" r="3" fill="#1e293b"/>
-        </svg>
-        <div style="font-size:8px;color:#94a3b8;margin-top:2px">Front view · 90° throws</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="right-panel">
-    <div class="card">
-      <div class="card-label">Tracking · Cylinder <span id="track-cyl">1</span></div>
-      <div class="phase-name intake" id="phase-name">Intake</div>
-      <div class="metric-row">
-        <span class="label">Chamber Pressure</span>
-        <span><span class="val" id="pressure-val">1.0</span><span class="unit">BAR</span></span>
-      </div>
-      <div class="bar-thin"><div id="pressure-bar" style="width:8%;background:#2563eb"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Valve Timing</div>
-      <div class="chart-box"><canvas id="valve-canvas" width="168" height="52"></canvas></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Indicator Diagram · Cyl <span id="ind-cyl">1</span></div>
-      <div class="chart-box"><canvas id="pv-canvas" width="168" height="52"></canvas></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Controls</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px">
-          <span style="color:#6b7280">Throttle</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-weight:500" id="throttle-label">70%</span>
-        </div>
-        <input type="range" id="throttle" min="20" max="100" value="70" style="width:100%;accent-color:#e11d48">
-      </div>
-    </div>
-  </div>
-
-  <div class="bottom-bar">
-    <button id="btn-run" class="active">⏸ PAUSE</button>
-    <div class="sep"></div>
-    <div class="speed-control">
-      <span>ENGINE SPEED</span>
-      <input type="range" id="speed" min="600" max="7000" value="2400" step="50">
-      <span class="val" id="speed-label">2400 RPM</span>
-    </div>
-    <div class="sep"></div>
-    <button id="btn-cutaway" class="secondary">CUTAWAY</button>
-    <button id="btn-explode" class="secondary">EXPLODE</button>
-  </div>
-
-  <div class="overlay-presets">
-    <button data-ov="arrows" class="active">ARROWS</button>
-    <button data-ov="callouts">CALLOUTS</button>
-    <button data-ov="isolate">ISOLATE</button>
-  </div>
-  <div class="mode-presets">
-    <button data-mode="glass" class="active">GLASS</button>
-    <button data-mode="section">SECTION</button>
-    <button data-mode="solid">SOLID</button>
-  </div>
-  <div class="cam-presets">
-    <button data-cam="hero" class="active">HERO</button>
-    <button data-cam="front">FRONT</button>
-    <button data-cam="side">SIDE</button>
-    <button data-cam="valley">VALLEY</button>
-    <button data-cam="cyl">CYL</button>
-  </div>
-  <div class="hint">Drag to orbit · Scroll to zoom · Idle auto-tour</div>
-
-<script type="importmap">
-{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
-</script>
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-
-const state = {
-  running: true, exploded: false, cutaway: true, mode: 'glass',
-  showArrows: true, showCallouts: false, isolate: false,
-  rpm: 2400, throttle: 0.70, crankAngle: 0,
-  lastTime: performance.now(), idleTimer: 0, autoTour: false, tourT: 0, trackIdx: 0,
-};
-
-const STROKE = 90, ROD = 155, SCALE = 0.0092;
-const throwR = (STROKE / 2) * SCALE;
-const rodLen = ROD * SCALE;
-const BANK = Math.PI / 4;
-const PITCH = 0.88;
-
-const CYLS = [
-  { bank: -1, pos: 0, throw: 0,           label: '1' },
-  { bank: -1, pos: 1, throw: Math.PI,     label: '3' },
-  { bank: -1, pos: 2, throw: Math.PI*1.5, label: '5' },
-  { bank: -1, pos: 3, throw: Math.PI*0.5, label: '7' },
-  { bank:  1, pos: 0, throw: Math.PI*0.5, label: '2' },
-  { bank:  1, pos: 1, throw: Math.PI*1.5, label: '4' },
-  { bank:  1, pos: 2, throw: Math.PI,     label: '6' },
-  { bank:  1, pos: 3, throw: 0,           label: '8' },
-];
-const FIRE_ORDER = [0, 7, 5, 1, 6, 2, 3, 4];
-const FIRE_LABEL = ['1','8','4','3','6','5','7','2'];
-
-const container = document.getElementById('canvas-container');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.02;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-container.appendChild(renderer.domElement);
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf0f2f5);
-scene.fog = new THREE.Fog(0xf0f2f5, 14, 36);
-
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
-const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.08, 50);
-camera.position.set(5.5, 3.8, 9.5);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.07;
-controls.target.set(0, 1.5, 0);
-controls.minDistance = 4; controls.maxDistance = 18; controls.maxPolarAngle = Math.PI * 0.8;
-
-scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-const key = new THREE.DirectionalLight(0xfff8f0, 1.2);
-key.position.set(4, 10, 6); key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.near = 1; key.shadow.camera.far = 26;
-key.shadow.camera.left = -8; key.shadow.camera.right = 8;
-key.shadow.camera.top = 8; key.shadow.camera.bottom = -8;
-key.shadow.bias = -0.0002; key.shadow.normalBias = 0.012;
-scene.add(key);
-scene.add(new THREE.DirectionalLight(0xd0e0ff, 0.35).translateX(-5).translateY(3).translateZ(-2));
-scene.add(new THREE.DirectionalLight(0xffe8d0, 0.22).translateY(2).translateZ(-7));
-
-const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(10, 64),
-  new THREE.MeshStandardMaterial({ color: 0xe4e7ec, roughness: 0.95, metalness: 0.02 })
-);
-ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; ground.receiveShadow = true;
-scene.add(ground);
-
-// Materials — tuned for realism
-const mat = {
-  block:  new THREE.MeshStandardMaterial({ color: 0x1c2230, roughness: 0.32, metalness: 0.84 }),
-  piston: new THREE.MeshStandardMaterial({ color: 0xf0f2f5, roughness: 0.22, metalness: 0.55 }),
-  pistonTop: new THREE.MeshStandardMaterial({ color: 0xe8eaee, roughness: 0.18, metalness: 0.6 }),
-  ring:   new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.35, metalness: 0.85 }),
-  rod:    new THREE.MeshStandardMaterial({ color: 0x2a3140, roughness: 0.18, metalness: 0.92 }),
-  rodCap: new THREE.MeshStandardMaterial({ color: 0x1e2532, roughness: 0.2, metalness: 0.9 }),
-  crank:  new THREE.MeshStandardMaterial({ color: 0x1e2532, roughness: 0.16, metalness: 0.94 }),
-  valve:  new THREE.MeshStandardMaterial({ color: 0xb0b8c4, roughness: 0.14, metalness: 0.9 }),
-  glass:  new THREE.MeshPhysicalMaterial({
-    color: 0xa8d4f0, transparent: true, opacity: 0.12, roughness: 0.02, metalness: 0.0,
-    transmission: 0.92, thickness: 0.4, side: THREE.DoubleSide, ior: 1.5,
-    specularIntensity: 0.8,
-  }),
-  linerMetal: new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.3, metalness: 0.8 }),
-  section: new THREE.MeshStandardMaterial({ color: 0x2a3344, roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide }),
-  accent: new THREE.MeshStandardMaterial({
-    color: 0xe11d48, roughness: 0.25, metalness: 0.45, emissive: 0x9f1239, emissiveIntensity: 0.12,
-  }),
-  dark:   new THREE.MeshStandardMaterial({ color: 0x12161e, roughness: 0.42, metalness: 0.55 }),
-  fly:    new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.26, metalness: 0.88 }),
-  arrow:  new THREE.MeshBasicMaterial({ color: 0xe11d48 }),
-  glow:   new THREE.MeshStandardMaterial({ color: 0xff6b35, emissive: 0xff4400, emissiveIntensity: 0.6, transparent: true, opacity: 0.35 }),
-};
-
-function C(rt, rb, h, m, s = 28) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, s), m);
-  mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-}
-function B(w, h, d, m) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-  mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-}
-
-// Realistic piston assembly
-function createPiston() {
-  const g = new THREE.Group();
-  // Crown (slightly domed)
-  const crown = new THREE.Mesh(
-    new THREE.SphereGeometry(0.29, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.35),
-    mat.pistonTop
-  );
-  crown.position.y = 0.08;
-  crown.castShadow = true;
-  g.add(crown);
-  // Flat land under crown
-  const land = C(0.295, 0.295, 0.018, mat.piston, 28);
-  land.position.y = 0.055;
-  g.add(land);
-  // Compression ring 1
-  const r1 = C(0.302, 0.302, 0.014, mat.ring, 28);
-  r1.position.y = 0.035;
-  g.add(r1);
-  // Groove separator
-  const sep1 = C(0.288, 0.288, 0.01, mat.piston, 24);
-  sep1.position.y = 0.022;
-  g.add(sep1);
-  // Compression ring 2
-  const r2 = C(0.302, 0.302, 0.014, mat.ring, 28);
-  r2.position.y = 0.008;
-  g.add(r2);
-  // Oil ring
-  const oil = C(0.300, 0.300, 0.018, mat.dark, 24);
-  oil.position.y = -0.012;
-  g.add(oil);
-  // Skirt (slightly tapered)
-  const skirt = C(0.295, 0.288, 0.14, mat.piston, 28);
-  skirt.position.y = -0.095;
-  g.add(skirt);
-  // Wrist pin bosses
-  const bossL = C(0.04, 0.04, 0.06, mat.piston, 12);
-  bossL.rotation.x = Math.PI / 2;
-  bossL.position.set(0, -0.06, 0.1);
-  g.add(bossL);
-  const bossR = bossL.clone();
-  bossR.position.z = -0.1;
-  g.add(bossR);
-  // Wrist pin
-  const pin = C(0.028, 0.028, 0.34, mat.crank, 12);
-  pin.rotation.x = Math.PI / 2;
-  pin.position.y = -0.06;
-  g.add(pin);
-  // Pin circlips
-  const clip1 = C(0.032, 0.032, 0.008, mat.dark, 10);
-  clip1.rotation.x = Math.PI / 2;
-  clip1.position.set(0, -0.06, 0.155);
-  g.add(clip1);
-  const clip2 = clip1.clone();
-  clip2.position.z = -0.155;
-  g.add(clip2);
-  return g;
-}
-
-// I-beam connecting rod
-function createRod(len) {
-  const g = new THREE.Group();
-  const beamH = len * 0.78;
-  // I-beam web
-  const web = B(0.022, beamH, 0.055, mat.rod);
-  g.add(web);
-  // I-beam flanges
-  const fl1 = B(0.07, beamH, 0.016, mat.rod);
-  fl1.position.z = 0.028;
-  g.add(fl1);
-  const fl2 = B(0.07, beamH, 0.016, mat.rod);
-  fl2.position.z = -0.028;
-  g.add(fl2);
-  // Small end
-  const smallEnd = C(0.048, 0.048, 0.095, mat.rod, 16);
-  smallEnd.rotation.x = Math.PI / 2;
-  smallEnd.position.y = len / 2 * 0.92;
-  g.add(smallEnd);
-  // Big end
-  const bigEnd = C(0.095, 0.095, 0.12, mat.rod, 18);
-  bigEnd.rotation.x = Math.PI / 2;
-  bigEnd.position.y = -len / 2 * 0.92;
-  g.add(bigEnd);
-  // Cap bolts
-  for (const side of [-1, 1]) {
-    const bolt = C(0.012, 0.012, 0.04, mat.dark, 8);
-    bolt.position.set(side * 0.055, -len / 2 * 0.92, 0);
-    g.add(bolt);
-    const nut = C(0.018, 0.018, 0.01, mat.rodCap, 6);
-    nut.position.set(side * 0.055, -len / 2 * 0.92 - 0.025, 0);
-    g.add(nut);
-  }
-  return g;
-}
-
-const engine = new THREE.Group();
-scene.add(engine);
-
-const caseMain = B(3.7, 1.1, 1.55, mat.block);
-caseMain.position.y = 0.32; engine.add(caseMain);
-const caseF = C(0.5, 0.5, 0.12, mat.block, 32);
-caseF.rotation.x = Math.PI / 2; caseF.position.set(0, 0.22, 0.82); engine.add(caseF);
-const caseR = caseF.clone(); caseR.position.z = -0.82; engine.add(caseR);
-
-const crankG = new THREE.Group();
-crankG.position.y = 0.2;
-engine.add(crankG);
-const mainJ = C(0.085, 0.085, 3.9, mat.crank, 20);
-mainJ.rotation.x = Math.PI / 2; crankG.add(mainJ);
-
-const pistons = [], rods = [], throws = [], blockOuters = [], liners = [], heads = [];
-const valveIns = [], valveExs = [];
-const cylGroups = [];
-
-for (let i = 0; i < 8; i++) {
-  const c = CYLS[i];
-  const z = (c.pos - 1.5) * PITCH;
-  const bankAngle = c.bank * BANK;
-
-  const bankG = new THREE.Group();
-  bankG.rotation.z = bankAngle;
-  engine.add(bankG);
-
-  const outer = C(0.4, 0.4, 1.1, mat.block, 28);
-  outer.position.set(0, 1.3, z);
-  bankG.add(outer);
-  blockOuters.push(outer);
-
-  // Glass liner + metal lip
-  const liner = C(0.32, 0.32, 1.05, mat.glass, 32);
-  liner.position.set(0, 1.3, z);
-  bankG.add(liner);
-  liners.push(liner);
-  const lip = C(0.335, 0.335, 0.04, mat.linerMetal, 28);
-  lip.position.set(0, 1.8, z);
-  bankG.add(lip);
-
-  const head = B(0.72, 0.24, 0.72, mat.block);
-  head.position.set(0, 1.92, z);
-  bankG.add(head);
-  heads.push(head);
-
-  // Realistic piston
-  const pg = createPiston();
-  engine.add(pg);
-  pistons.push({ group: pg, bank: c.bank, z, bankAngle, throw: c.throw });
-
-  // I-beam connecting rod
-  const rg = createRod(rodLen);
-  engine.add(rg);
-  rods.push({ group: rg, bank: c.bank, z, bankAngle, throw: c.throw });
-
-  // Crank throw
-  const tg = new THREE.Group();
-  tg.position.z = z;
-  crankG.add(tg);
-  const pin = C(0.055, 0.055, 0.12, mat.crank, 14);
-  pin.rotation.x = Math.PI / 2; pin.position.x = throwR; tg.add(pin);
-  const web1 = B(0.34, 0.045, 0.14, mat.crank);
-  web1.position.set(throwR * 0.4, 0, 0.09); tg.add(web1);
-  const web2 = B(0.34, 0.045, 0.14, mat.crank);
-  web2.position.set(throwR * 0.4, 0, -0.09); tg.add(web2);
-  const cw = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.26, 0.26, 0.1, 24, 1, false, 0, Math.PI), mat.crank
-  );
-  cw.rotation.x = Math.PI / 2; cw.rotation.z = Math.PI; cw.position.x = -throwR * 0.2; tg.add(cw);
-  throws.push({ group: tg, throwOffset: c.throw });
-
-  // Valves + springs
-  const vIn = new THREE.Group(), vEx = new THREE.Group();
-  engine.add(vIn); engine.add(vEx);
-  function makeV(g) {
-    const stem = C(0.014, 0.014, 0.38, mat.valve, 8); stem.position.y = 0.14; g.add(stem);
-    const vh = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.032, 16), mat.valve);
-    vh.position.y = -0.01; vh.rotation.x = Math.PI; vh.castShadow = true; g.add(vh);
-    const spring = C(0.028, 0.028, 0.12, mat.dark, 8);
-    spring.position.y = 0.28; g.add(spring);
-  }
-  makeV(vIn); makeV(vEx);
-  valveIns.push({ group: vIn, bank: c.bank, z, bankAngle });
-  valveExs.push({ group: vEx, bank: c.bank, z, bankAngle });
-
-  cylGroups.push({ bankG, outer, liner, head, i });
-}
-
-const fly = C(0.82, 0.82, 0.12, mat.fly, 40);
-fly.rotation.x = Math.PI / 2;
-fly.position.set(0, 0.2, -2.05);
-engine.add(fly);
-const teeth = C(0.86, 0.86, 0.035, mat.dark, 48);
-teeth.rotation.x = Math.PI / 2; teeth.position.copy(fly.position); engine.add(teeth);
-
-const arrowGroup = new THREE.Group();
-engine.add(arrowGroup);
-for (let a = 0; a < 3; a++) {
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.35 + a * 0.08, 0.012, 8, 32, Math.PI * 1.4),
-    new THREE.MeshBasicMaterial({ color: 0xe11d48, transparent: true, opacity: 0.7 - a * 0.15 })
-  );
-  ring.rotation.y = Math.PI / 2;
-  ring.position.set(0, 0.2, -2.05);
-  arrowGroup.add(ring);
-}
-
-const calloutEls = [];
-function makeCallout(text) {
-  const el = document.createElement('div');
-  el.className = 'label-3d';
-  el.textContent = text;
-  el.style.display = 'none';
-  document.body.appendChild(el);
-  calloutEls.push(el);
-  return el;
-}
-const callFly = makeCallout('Flywheel');
-const callCam = makeCallout('Camshaft');
-const callCrank = makeCallout('Crankshaft');
-
-function phaseOf(c) {
-  if (c < 0.25) return 'Intake';
-  if (c < 0.50) return 'Compression';
-  if (c < 0.75) return 'Power';
-  return 'Exhaust';
-}
-function pressureOf(c, th) {
-  if (c < 0.25) return 0.95 + 0.2 * th;
-  if (c < 0.50) { const t = (c - 0.25) / 0.25; return 1 + t * t * 14 * th; }
-  if (c < 0.55) return 38 * th + Math.random() * 1.2;
-  if (c < 0.75) { const t = (c - 0.55) / 0.2; return (38 * th) * Math.pow(1 - t, 1.5) + 1.1; }
-  return 1.05;
-}
-
-function updateKinematics(angle) {
-  const exp = state.exploded ? 1 : 0;
-  const results = [];
-  const isol = state.isolate;
-  const trackPhys = FIRE_ORDER[state.trackIdx];
-
-  for (let i = 0; i < 8; i++) {
-    const p = pistons[i];
-    const localTheta = angle + p.throw;
-    const r = throwR, l = rodLen;
-
-    const pistonY = r * Math.cos(localTheta) + Math.sqrt(Math.max(0, l*l - r*r*Math.sin(localTheta)*Math.sin(localTheta)));
-    const baseY = 0.2;
-    const pCenter = baseY + pistonY;
-
-    const localX = exp * p.bank * 0.5;
-    const localY = pCenter + exp * 0.35;
-    const ca = Math.cos(p.bankAngle), sa = Math.sin(p.bankAngle);
-    const wx = localX * ca - localY * sa;
-    const wy = localX * sa + localY * ca;
-
-    p.group.position.set(wx, wy, p.z + exp * p.bank * 0.12);
-    p.group.rotation.z = p.bankAngle;
-
-    const show = !isol || i === trackPhys;
-    p.group.visible = show;
-    rods[i].group.visible = show;
-    throws[i].group.visible = show;
-    valveIns[i].group.visible = show;
-    valveExs[i].group.visible = show;
-    blockOuters[i].visible = show && state.mode !== 'glass';
-    liners[i].visible = show && (state.mode === 'glass' || state.mode === 'section');
-    heads[i].visible = show;
-    cylGroups[i].bankG.visible = show || !isol;
-
-    const phi = Math.asin(Math.max(-1, Math.min(1, (r / l) * Math.sin(localTheta))));
-    const rodLocalY = (baseY + pCenter) / 2 + exp * 0.2;
-    const rx = (exp ? p.bank * 0.3 : (r * Math.sin(localTheta)) * 0.35) * ca - rodLocalY * sa;
-    const ry = (exp ? p.bank * 0.3 : (r * Math.sin(localTheta)) * 0.35) * sa + rodLocalY * ca;
-    rods[i].group.position.set(rx, ry, p.z);
-    rods[i].group.rotation.z = p.bankAngle - (exp ? 0 : phi);
-
-    throws[i].group.rotation.z = -localTheta;
-
-    const cycle = ((localTheta % (Math.PI * 4)) + Math.PI * 4) % (Math.PI * 4) / (Math.PI * 4);
-    let inLift = 0, exLift = 0;
-    if (cycle < 0.22) inLift = Math.sin((cycle / 0.22) * Math.PI);
-    if (cycle > 0.48 && cycle < 0.72) exLift = Math.sin(((cycle - 0.48) / 0.24) * Math.PI);
-
-    const vBaseY = 1.78 + exp * 0.65;
-    const vInLocalY = vBaseY + inLift * 0.12;
-    const vExLocalY = vBaseY + exLift * 0.12;
-    const vIn = valveIns[i], vEx = valveExs[i];
-    const vInX = (-0.14 + exp * p.bank * 0.08) * ca - vInLocalY * sa;
-    const vInY = (-0.14 + exp * p.bank * 0.08) * sa + vInLocalY * ca;
-    const vExX = ( 0.14 + exp * p.bank * 0.08) * ca - vExLocalY * sa;
-    const vExY = ( 0.14 + exp * p.bank * 0.08) * sa + vExLocalY * ca;
-    vIn.group.position.set(vInX, vInY, p.z);
-    vEx.group.position.set(vExX, vExY, p.z);
-    vIn.group.rotation.z = p.bankAngle;
-    vEx.group.rotation.z = p.bankAngle;
-
-    heads[i].position.y = 1.92 + exp * 0.8;
-
-    if (state.mode === 'glass') {
-      liners[i].material = mat.glass;
-      liners[i].visible = show;
-      blockOuters[i].visible = false;
-    } else if (state.mode === 'section') {
-      liners[i].material = mat.section;
-      liners[i].visible = show;
-      blockOuters[i].visible = show;
-    } else {
-      liners[i].visible = false;
-      blockOuters[i].visible = show;
-    }
-
-    results.push({
-      pistonMm: (pCenter - baseY) / SCALE,
-      phase: phaseOf(cycle),
-      pressure: pressureOf(cycle, state.throttle),
-      cycle, inLift, exLift,
-    });
-  }
-
-  crankG.rotation.z = -angle;
-  crankG.position.y = 0.2 + exp * -0.3;
-  crankG.position.z = exp * -0.35;
-
-  arrowGroup.visible = state.showArrows && !isol;
-  arrowGroup.rotation.z = -angle;
-
-  const sx = 38 + Math.sin(angle) * 10;
-  const sy = 34 - Math.cos(angle) * 10;
-  const rodEl = document.getElementById('schem-rod');
-  const pistEl = document.getElementById('schem-piston');
-  if (rodEl) {
-    rodEl.setAttribute('x1', sx); rodEl.setAttribute('y1', sy);
-    const py = 16 - Math.cos(angle) * 6;
-    rodEl.setAttribute('x2', 100); rodEl.setAttribute('y2', py + 8);
-    pistEl.setAttribute('y', py);
-  }
-
-  const crankSchem = document.getElementById('crank-schem');
-  if (crankSchem) crankSchem.setAttribute('transform', `rotate(${-angle * 180 / Math.PI} 60 35)`);
-
-  return results;
-}
-
-const valveCanvas = document.getElementById('valve-canvas');
-const valveCtx = valveCanvas.getContext('2d');
-const pvCanvas = document.getElementById('pv-canvas');
-const pvCtx = pvCanvas.getContext('2d');
-
-function drawValveChart(cycle) {
-  const w = valveCanvas.width, h = valveCanvas.height;
-  valveCtx.clearRect(0, 0, w, h);
-  valveCtx.strokeStyle = '#e5e7eb'; valveCtx.lineWidth = 1;
-  valveCtx.beginPath(); valveCtx.moveTo(0, h/2); valveCtx.lineTo(w, h/2); valveCtx.stroke();
-  valveCtx.strokeStyle = '#059669'; valveCtx.lineWidth = 1.5;
-  valveCtx.beginPath();
-  for (let x = 0; x < w; x++) {
-    const c = x / w;
-    let lift = 0;
-    if (c < 0.22) lift = Math.sin((c / 0.22) * Math.PI);
-    const y = h/2 - lift * (h/2 - 4);
-    if (x === 0) valveCtx.moveTo(x, y); else valveCtx.lineTo(x, y);
-  }
-  valveCtx.stroke();
-  valveCtx.strokeStyle = '#64748b'; valveCtx.beginPath();
-  for (let x = 0; x < w; x++) {
-    const c = x / w;
-    let lift = 0;
-    if (c > 0.48 && c < 0.72) lift = Math.sin(((c - 0.48) / 0.24) * Math.PI);
-    const y = h/2 - lift * (h/2 - 4);
-    if (x === 0) valveCtx.moveTo(x, y); else valveCtx.lineTo(x, y);
-  }
-  valveCtx.stroke();
-  const px = cycle * w;
-  valveCtx.strokeStyle = '#e11d48'; valveCtx.lineWidth = 1;
-  valveCtx.beginPath(); valveCtx.moveTo(px, 0); valveCtx.lineTo(px, h); valveCtx.stroke();
-}
-
-function drawPV(cycle, pressure) {
-  const w = pvCanvas.width, h = pvCanvas.height;
-  pvCtx.clearRect(0, 0, w, h);
-  pvCtx.strokeStyle = '#e5e7eb'; pvCtx.lineWidth = 1;
-  pvCtx.beginPath(); pvCtx.moveTo(8, 4); pvCtx.lineTo(8, h-4); pvCtx.lineTo(w-4, h-4); pvCtx.stroke();
-  pvCtx.strokeStyle = '#e11d48'; pvCtx.lineWidth = 1.5;
-  pvCtx.beginPath();
-  const pts = [[0.05, 0.08], [0.25, 0.12], [0.35, 0.85], [0.55, 0.9], [0.75, 0.15], [0.95, 0.1]];
-  for (let i = 0; i < pts.length; i++) {
-    const x = 8 + pts[i][0] * (w - 16);
-    const y = (h - 8) - pts[i][1] * (h - 16);
-    if (i === 0) pvCtx.moveTo(x, y); else pvCtx.lineTo(x, y);
-  }
-  pvCtx.stroke();
-  const cx = 8 + cycle * (w - 16);
-  const cy = (h - 8) - Math.min(1, pressure / 45) * (h - 16);
-  pvCtx.fillStyle = '#e11d48';
-  pvCtx.beginPath(); pvCtx.arc(cx, cy, 2.5, 0, Math.PI * 2); pvCtx.fill();
-}
-
-const btnRun = document.getElementById('btn-run');
-const btnCut = document.getElementById('btn-cutaway');
-const btnExp = document.getElementById('btn-explode');
-const speedEl = document.getElementById('speed');
-const throttleEl = document.getElementById('throttle');
-
-btnRun.onclick = () => {
-  state.running = !state.running;
-  btnRun.classList.toggle('active', state.running);
-  btnRun.textContent = state.running ? '⏸ PAUSE' : '▶ RUN';
-  resetIdle();
-};
-btnCut.onclick = () => {
-  state.cutaway = !state.cutaway;
-  if (state.cutaway) state.mode = 'glass';
-  else state.mode = 'solid';
-  btnCut.classList.toggle('active', state.cutaway);
-  document.querySelectorAll('.mode-presets button').forEach(b => {
-    b.classList.toggle('active', b.dataset.mode === state.mode);
-  });
-  resetIdle();
-};
-btnExp.onclick = () => {
-  state.exploded = !state.exploded;
-  btnExp.classList.toggle('active', state.exploded);
-  btnExp.textContent = state.exploded ? 'ASSEMBLE' : 'EXPLODE';
-  resetIdle();
-};
-speedEl.oninput = () => {
-  state.rpm = +speedEl.value;
-  document.getElementById('speed-label').textContent = state.rpm + ' RPM';
-  document.getElementById('rpm-num').textContent = state.rpm;
-  document.getElementById('rpm-bar').style.width = (state.rpm / 7000 * 100) + '%';
-  resetIdle();
-};
-throttleEl.oninput = () => {
-  state.throttle = +throttleEl.value / 100;
-  document.getElementById('throttle-label').textContent = throttleEl.value + '%';
-  resetIdle();
-};
-
-document.querySelectorAll('#firing-row .cyl').forEach(el => {
-  el.onclick = () => {
-    state.trackIdx = +el.dataset.idx;
-    document.getElementById('track-cyl').textContent = FIRE_LABEL[state.trackIdx];
-    document.getElementById('ind-cyl').textContent = FIRE_LABEL[state.trackIdx];
-    resetIdle();
-  };
-});
-
-const cams = {
-  hero:   { pos: [5.5, 3.8, 9.5], target: [0, 1.5, 0] },
-  front:  { pos: [0, 2.8, 11], target: [0, 1.4, 0] },
-  side:   { pos: [11, 2.6, 0.3], target: [0, 1.4, 0] },
-  valley: { pos: [0.2, 8, 6], target: [0, 1.6, 0] },
-  cyl:    { pos: [2.2, 2.4, 4.5], target: [0.8, 1.5, 0.3] },
-};
-document.querySelectorAll('.cam-presets button').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('.cam-presets button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const c = cams[btn.dataset.cam];
-    camera.position.set(...c.pos); controls.target.set(...c.target); resetIdle();
-  };
-});
-
-document.querySelectorAll('.mode-presets button').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('.mode-presets button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.mode = btn.dataset.mode;
-    state.cutaway = state.mode !== 'solid';
-    btnCut.classList.toggle('active', state.cutaway);
-    resetIdle();
-  };
-});
-
-document.querySelectorAll('.overlay-presets button').forEach(btn => {
-  btn.onclick = () => {
-    btn.classList.toggle('active');
-    const ov = btn.dataset.ov;
-    if (ov === 'arrows') state.showArrows = btn.classList.contains('active');
-    if (ov === 'callouts') state.showCallouts = btn.classList.contains('active');
-    if (ov === 'isolate') state.isolate = btn.classList.contains('active');
-    resetIdle();
-  };
-});
-
-function resetIdle() { state.idleTimer = 0; state.autoTour = false; }
-['pointerdown','wheel','keydown','touchstart'].forEach(e => addEventListener(e, resetIdle, { passive: true }));
-
-function autoTour(dt) {
-  if (!state.autoTour) return;
-  state.tourT += dt * 0.09;
-  const r = 11;
-  camera.position.x = Math.sin(state.tourT) * r * 0.7 + 2;
-  camera.position.z = Math.cos(state.tourT) * r;
-  camera.position.y = 3.2 + Math.sin(state.tourT * 0.3) * 0.6;
-  controls.target.set(0, 1.5, 0);
-  controls.update();
-}
-
-function projectLabel(el, x, y, z) {
-  if (!state.showCallouts) { el.style.display = 'none'; return; }
-  const v = new THREE.Vector3(x, y, z);
-  v.project(camera);
-  if (v.z > 1) { el.style.display = 'none'; return; }
-  const sx = (v.x * 0.5 + 0.5) * innerWidth;
-  const sy = (-v.y * 0.5 + 0.5) * innerHeight;
-  el.style.display = 'block';
-  el.style.left = sx + 'px';
-  el.style.top = sy + 'px';
-}
-
-function animate(now) {
-  requestAnimationFrame(animate);
-  const dt = Math.min((now - state.lastTime) / 1000, 0.05);
-  state.lastTime = now;
-  state.idleTimer += dt;
-  if (state.idleTimer > 12 && !state.autoTour) state.autoTour = true;
-
-  if (state.running) state.crankAngle += (state.rpm / 60) * Math.PI * 2 * dt;
-
-  const results = updateKinematics(state.crankAngle);
-  const physIdx = FIRE_ORDER[state.trackIdx];
-  const kin = results[physIdx];
-
-  document.getElementById('pressure-val').textContent = kin.pressure.toFixed(1);
-  const pBar = document.getElementById('pressure-bar');
-  pBar.style.width = Math.min(100, kin.pressure / 45 * 100) + '%';
-  pBar.style.background = kin.pressure > 18 ? '#e11d48' : kin.pressure > 6 ? '#d97706' : '#2563eb';
-
-  const phaseEl = document.getElementById('phase-name');
-  phaseEl.textContent = kin.phase;
-  phaseEl.className = 'phase-name ' + kin.phase.toLowerCase();
-
-  document.querySelectorAll('#firing-row .cyl').forEach((el, idx) => {
-    const pIdx = FIRE_ORDER[idx];
-    const ph = results[pIdx].phase.toLowerCase();
-    el.className = 'cyl ' + ph;
-    if (idx === state.trackIdx) el.classList.add('active');
-  });
-
-  drawValveChart(kin.cycle);
-  drawPV(kin.cycle, kin.pressure);
-
-  projectLabel(callFly, 0, 0.2, -2.05);
-  projectLabel(callCam, 0, 2.4, 0);
-  projectLabel(callCrank, 0, 0.2, 0);
-
-  if (state.autoTour) autoTour(dt); else controls.update();
-  renderer.render(scene, camera);
-}
-
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-document.getElementById('rpm-num').textContent = state.rpm;
-document.getElementById('rpm-bar').style.width = (state.rpm / 7000 * 100) + '%';
-document.getElementById('track-cyl').textContent = FIRE_LABEL[state.trackIdx];
-document.getElementById('ind-cyl').textContent = FIRE_LABEL[state.trackIdx];
-updateKinematics(0);
-animate(performance.now());
+<canvas id="gl"></canvas>
+<div id="strip">
+<div class="card"><div class="k">V8 · Four-Stroke</div><div class="k" style="font-size:8px">90° cross-plane · 1-8-4-3-6-5-7-2</div><div style="margin-top:4px"><span class="big" id="rpm">2400</span> <span class="k">rev/min</span></div>
+<div class="k" style="margin-top:6px">Firing order · tap to track</div><div id="chips"></div></div>
+<div class="card"><div class="k" id="trk">Cylinder 1</div><div id="stk">Power</div><div><b id="pp" style="font-size:18px;color:var(--acc)">0</b> <span class="k">bar chamber pressure</span></div>
+<div class="k" style="margin-top:4px">Slider-crank <span id="ang"></span></div><canvas class="p" id="sc" width="340" height="184"></canvas><div class="k" style="text-transform:none">s = r·cosθ + √(L² − r²sin²θ)</div></div>
+<div class="card"><div class="k">Valve timing · drag to scrub</div><canvas class="p" id="vt" width="340" height="184" style="touch-action:none"></canvas></div>
+<div class="card"><div class="k">Indicator diagram · p–V</div><canvas class="p" id="pv" width="340" height="184"></canvas></div>
+<div class="card"><div class="k">Cross-plane crank · front view</div><canvas class="p" id="cp" width="340" height="184"></canvas><div id="chk" class="k" style="text-transform:none;width:170px"></div></div>
+</div>
+<div id="ctl">
+<div class="row"><button id="pz" class="red on">Pause</button><button id="m15">−15°</button><button id="p15">+15°</button>
+<label>Engine<input id="sp" type="range" min="0" max="8000" value="2400"></label>
+<label>Playback 1/<b id="pbv">20</b><input id="pb" type="range" min="1" max="100" value="20"></label>
+<label>Throttle<input id="th" type="range" min="0" max="1" step=".01" value=".7"></label></div>
+<div class="row"><button data-v="hero" class="on">Hero</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="valley">Valley</button><button data-v="cyl">Cyl</button>
+<button data-m="glass" class="on">Glass</button><button data-m="section">Section</button><button data-m="solid">Solid</button>
+<button id="chg" class="red on">Charge</button><button id="iso">Isolate</button><button id="pnl" class="on">Panels</button></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===== MODEL: pure functions of crank angle θ (degrees, 0–720) ===== */
+const D=Math.PI/180,mod=(a,n)=>((a%n)+n)%n,sm=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
+const M={bore:92.5,stroke:92.9,rod:150,cr:10.5};
+M.r=M.stroke/2;M.A=Math.PI/4*M.bore**2;M.Vd=M.A*M.stroke;M.Vc=M.Vd/(M.cr-1);
+const ORDER=[1,8,4,3,6,5,7,2],PINS=[45,225,135,315],ZS=[-1.875,-.625,.625,1.875];
+const CY=[];for(let n=1;n<=8;n++){const k=ORDER.indexOf(n),beta=(n%2?45:-45)*D,pin=beta-90*k*D,pd=Math.round(mod(pin/D,360)),zi=PINS.indexOf(pd);
+CY.push({n,k,beta,pin,zi,z:ZS[zi]+(n%2?.14:-.14)});}
+const xOf=a=>M.rod+M.r-(M.r*Math.cos(a)+Math.sqrt(M.rod**2-(M.r*Math.sin(a))**2));
+const phase=(th,c)=>mod(th-90*c.k,720);
+function pOf(ph,x,thr){const pm=.3+.7*thr,lam=1+3.3*(.4+.6*thr),V=M.Vc+M.A*x;
+const pw=(x,b)=>pm*Math.pow(M.cr,1.32)*(1+(lam-1)*b)*Math.pow(M.Vc/(M.Vc+M.A*x),1.28);
+if(ph<180)return pw(x,sm(ph/45));if(ph<360)return 1.1+(pw(M.stroke,1)-1.1)*Math.exp(-(ph-180)/10);
+if(ph<540)return pm;return pm*Math.pow((M.Vc+M.A*M.stroke)/V,1.32);}
+const lift=(ph,o,d)=>{const t=mod(ph-o,720);return t<d?Math.pow(Math.sin(Math.PI*t/d),2):0};
+const IV=[350,250],EV=[130,250];
+function state(th,c,thr){const psi=th*D+c.pin,a=psi-c.beta,s=M.r*Math.cos(a)+Math.sqrt(M.rod**2-(M.r*Math.sin(a))**2),x=M.rod+M.r-s,ph=phase(th,c);
+return{psi,a,s,x,ph,p:pOf(ph,x,thr),iv:lift(ph,...IV),ev:lift(ph,...EV)};}
+const pairs={};CY.forEach(c=>(pairs[c.zi]=pairs[c.zi]||[]).push(c.n));
+const fireOK=ORDER.every((n,k)=>Math.abs(mod((CY[n-1].beta-CY[n-1].pin)/D,360)-mod(90*k,360))<1e-6)&&Object.values(pairs).every(p=>p.length===2&&p[0]%2!==p[1]%2);
+document.getElementById('chk').textContent=`${(8*M.Vd/1e6).toFixed(2)} L · CR ${M.cr}:1 · ${M.bore}×${M.stroke} mm · rod ${M.rod} mm · 90° firing ${fireOK?'✓':'✗'}`;
+
+/* ===== SCENE ===== */
+const U=.01,cv=document.getElementById('gl');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;R.localClippingEnabled=true;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xeceef1);
+const cam=new THREE.PerspectiveCamera(38,1,.1,200);
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa3b0,.95));
+const dl=new THREE.DirectionalLight(0xffffff,.85);dl.position.set(5,12,7);dl.castShadow=true;dl.shadow.mapSize.set(2048,2048);Object.assign(dl.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:40});dl.shadow.bias=-.0004;scene.add(dl);
+const fl=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.ShadowMaterial({opacity:.16}));fl.rotation.x=-Math.PI/2;fl.position.y=-2.1;fl.receiveShadow=true;scene.add(fl);
+const mat=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:.5,roughness:.45},o));
+const blk=0x15181d,steel=mat(0xc3c9d2,{metalness:.8,roughness:.3}),dk=mat(0x1d2025),white=mat(0xe9edf2,{metalness:.3,roughness:.35}),rodM=mat(0x7e8794,{metalness:.7}),gearM=mat(0x23272e,{metalness:.6});
+const shell=[],sh=(c,o)=>{const m=mat(c,Object.assign({transparent:true,opacity:.22,depthWrite:false},o));shell.push(m);return m};
+const clipP=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
+const box=(w,h,d,m,x,y,z,p)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);(p||scene).add(b);return b};
+const cylZ=(r,l,m,x,y,z,p,seg)=>{const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,seg||32),m);c.rotation.x=Math.PI/2;c.position.set(x,y,z);(p||scene).add(c);return c};
+function gear(T,r,t,m){const s=new THREE.Shape(),n=T*4,k=[.9,1,1,.9];for(let i=0;i<n;i++){const a=i/n*6.2832,q=r*k[i%4];i?s.lineTo(q*Math.cos(a),q*Math.sin(a)):s.moveTo(q*Math.cos(a),q*Math.sin(a))}
+const g=new THREE.ExtrudeGeometry(s,{depth:t,bevelEnabled:false});g.translate(0,0,-t/2);return new THREE.Mesh(g,m)}
+function spring(){const p=[];for(let i=0;i<=96;i++){const a=i/96*6.2832*8;p.push(new THREE.Vector3(.13*Math.cos(a),i/96,.13*Math.sin(a)))}return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p),96,.014,5),steel)}
+const deck=(M.rod+M.r)*U+.4+(M.Vc/M.A)*U,rr=M.r*U,Lr=M.rod*U,CAMY=1.44;
+/* block, heads, crankcase, manifold */
+box(2.7,1.5,5.7,sh(blk),0,-.35,0);box(2.3,.5,5.5,sh(0x2a2f37),0,-1.3,0);box(1.1,.5,5.2,sh(0x7d8794,{opacity:.5}),0,2.35,0);
+[45,-45].forEach(b=>{const g=new THREE.Group();g.rotation.z=-b*D;scene.add(g);box(1.75,1.5,5.6,sh(blk),0,deck-.75,0,g);box(1.8,.7,5.6,sh(0x242830,{opacity:.55}),0,deck+.35,0,g)});
+/* crankshaft + gears */
+const crank=new THREE.Group();scene.add(crank);cylZ(.22,8,steel,0,0,0,crank);
+PINS.forEach((p,i)=>{const pv=new THREE.Group();pv.position.z=ZS[i];pv.rotation.z=-p*D;crank.add(pv);
+for(const x of[-.38,.38]){const w=box(.8,1.25,.12,steel,0,.2,x,pv);const cw=box(1.0,.85,.12,dk,0,-.75,x,pv)}cylZ(.2,.64,steel,0,rr,0,pv)});
+const fw=gear(72,1.12,.3,gearM);fw.position.z=3.75;crank.add(fw);cylZ(.9,.34,dk,0,0,3.75,crank);
+const cg=gear(24,.48,.32,gearM);cg.position.z=-3.55;crank.add(cg);cylZ(.62,.5,dk,0,0,-4.1,crank);
+const camG=new THREE.Group();camG.position.set(0,CAMY,0);scene.add(camG);cylZ(.18,7.4,steel,0,0,0,camG);
+const cmg=gear(48,.96,.3,gearM);cmg.position.z=-3.55;camG.add(cmg);
+/* cylinders */
+const gasGeo=new THREE.CylinderGeometry(M.bore/200,M.bore/200,1,24),pr=M.bore/200;
+const COLS=[0xff5a32,0x8a94a3,0x3aa8ff,0xff9a3c],NAMES=['Power','Exhaust','Intake','Compression'];
+CY.forEach(c=>{const g=new THREE.Group();g.position.z=c.z;g.rotation.z=-c.beta;scene.add(g);c.g=g;c.parts=[];
+const liner=new THREE.Mesh(new THREE.CylinderGeometry(pr+.05,pr+.05,1.35,32,1,true),sh(0xaad4ff,{opacity:.18,metalness:.1,roughness:.1,side:THREE.DoubleSide}));liner.position.y=deck-.675;g.add(liner);
+c.gm=new THREE.MeshStandardMaterial({transparent:true,opacity:.7,color:0x3aa8ff,emissive:0x000000});c.gas=new THREE.Mesh(gasGeo,c.gm);g.add(c.gas);
+c.pis=new THREE.Group();g.add(c.pis);const crown=new THREE.Mesh(new THREE.CylinderGeometry(pr-.02,pr-.02,.6,32),white);crown.position.y=.1;c.pis.add(crown);
+for(const y of[.28,.2]){const rg=new THREE.Mesh(new THREE.TorusGeometry(pr-.02,.012,6,28),dk);rg.rotation.x=Math.PI/2;rg.position.y=y;c.pis.add(rg)}cylZ(.07,.72,steel,0,0,0,c.pis);
+c.rod=new THREE.Mesh(new THREE.BoxGeometry(.13,1,.17),rodM);scene.add(c.rod);
+c.plug=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.7,10),new THREE.MeshStandardMaterial({color:0xf0f0f0,emissive:0x000000}));c.plug.position.set(0,deck+.55,0);g.add(c.plug);
+const s=-Math.sign(c.beta);c.vs=[[s,350,IV,475,'iv'],[-s,130,EV,255,'ev']].map(([sg,o,t,pk])=>{
+const v=new THREE.Group();v.position.x=sg*.2;g.add(v);const st=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.9,8),steel);st.position.y=.45;v.add(st);
+const hd=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.03,20),white);v.add(hd);
+const sp=spring();sp.position.set(sg*.2,deck+.1,0);g.add(sp);
+const pv=new THREE.Group();pv.position.set(sg*.5,deck+.9,0);g.add(pv);box(.8,.08,.14,dk,0,0,0,pv);box(.1,.35,.14,dk,0,-.2,0,pv);
+const pu=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,2.1,6),steel);pu.position.set(sg*.68,deck-.15,0);g.add(pu);
+const lf=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.3,12),dk);lf.position.set(sg*.68,deck-1.3,0);g.add(lf);
+const lx=sg*.68,ly=deck-1.2,wx=Math.cos(c.beta)*lx+Math.sin(c.beta)*ly,wy=-Math.sin(c.beta)*lx+Math.cos(c.beta)*ly,gam=Math.atan2(wx,wy-CAMY);
+const lg=new THREE.Group();lg.position.z=c.z;lg.rotation.z=-(gam+(pk+90*c.k)*D/2);camG.add(lg);
+const lb=cylZ(.25,.2,gearM,0,0,0,lg,24);lb.scale.z=1.7;lb.position.y=0;
+c.parts.push(v,sp,pv,pu,lf,lg);return{sg,v,sp,pv,pu,lf,t:o,d:t[1]}});c.parts.push(c.g,c.rod)});
+scene.traverse(o=>{if(o.isMesh&&o!==fl)o.castShadow=true});
+/* camera */
+let az=.8,el=.35,dist=13,tgt=new THREE.Vector3(0,.4,0);
+const VIEWS={hero:[.8,.35,13],front:[0,0,13],side:[Math.PI/2,0,13],valley:[.35,1.0,11]};
+function placeCam(){cam.position.set(tgt.x+dist*Math.cos(el)*Math.sin(az),tgt.y+dist*Math.sin(el),tgt.z+dist*Math.cos(el)*Math.cos(az));cam.lookAt(tgt)}
+const $=id=>document.getElementById(id),q=s=>[...document.querySelectorAll(s)];
+function view(v){q('[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(v==='cyl'){const c=CY[track];tgt.set(Math.sin(c.beta)*1.6,Math.cos(c.beta)*1.6,c.z);az=.6;el=.15;dist=5.5}else{tgt.set(0,.4,0);[az,el,dist]=VIEWS[v];if(innerWidth<innerHeight)dist*=1.35}placeCam()}
+q('[data-v]').forEach(b=>b.onclick=()=>view(b.dataset.v));
+const pts=new Map();
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY])});
+cv.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const o=pts.get(e.pointerId);
+if(pts.size===1){az-=(e.clientX-o[0])*.008;el=Math.max(-1.45,Math.min(1.5,el+(e.clientY-o[1])*.008))}
+else{const r=[...pts.entries()].find(([i])=>i!==e.pointerId)[1],d0=Math.hypot(o[0]-r[0],o[1]-r[1]),d1=Math.hypot(e.clientX-r[0],e.clientY-r[1]);dist=Math.max(3,Math.min(30,dist*d0/d1))}
+pts.set(e.pointerId,[e.clientX,e.clientY]);placeCam()});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,e=>pts.delete(e.pointerId)));
+cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(3,Math.min(30,dist*(1+e.deltaY*.001)));placeCam()},{passive:false});
+function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();placeCam()}
+addEventListener('resize',resize);
+/* UI state */
+let track=0,th=0,run=true,thr=.7,curve=[];
+const chips=$('chips');ORDER.forEach(n=>{const b=document.createElement('button');b.textContent=n;b.dataset.n=n;b.onclick=()=>{track=n-1;sel();if(iso)isolate()};chips.appendChild(b)});
+const sel=()=>{[...chips.children].forEach(b=>b.classList.toggle('on',+b.dataset.n===track+1));$('trk').textContent='Cylinder '+(track+1)+' · '+((track+1)%2?'right':'left')+' bank'};sel();
+function buildCurve(){curve=[];for(let ph=0;ph<=720;ph+=4){const a=(ph%360)*D;curve.push([xOf(a),pOf(ph,xOf(a),thr),ph])}buildCurve();
+$('th').oninput=e=>{thr=+e.target.value;buildCurve()};$('pb').oninput=e=>$('pbv').textContent=e.target.value;
+const setRun=r=>{run=r;$('pz').textContent=run?'Pause':'Play';$('pz').classList.toggle('on',run)};$('pz').onclick=()=>setRun(!run);
+$('m15').onclick=()=>{setRun(false);th=mod(th-15,720)};$('p15').onclick=()=>{setRun(false);th=mod(th+15,720)};
+let iso=false;function isolate(){CY.forEach((c,i)=>{const v=!iso||i===track;c.g.visible=c.rod.visible=v});}
+$('iso').onclick=e=>{iso=!iso;e.target.classList.toggle('on',iso);isolate()};
+let chg=true;$('chg').onclick=e=>{chg=!chg;e.target.classList.toggle('on',chg);CY.forEach(c=>c.gas.visible=chg)};
+$('pnl').onclick=e=>{e.target.classList.toggle('on');$('strip').classList.toggle('off')};
+q('[data-m]').forEach(b=>b.onclick=()=>{q('[data-m]').forEach(x=>x.classList.toggle('on',x===b));const m=b.dataset.m;
+shell.forEach(s=>{const liner=s.side===THREE.DoubleSide;s.transparent=m==='glass'||liner;s.depthWrite=!(m==='glass'||liner);s.opacity=liner?(m==='glass'?.18:.1):(m==='glass'?.22:1);s.clippingPlanes=m==='section'?[clipP]:[];s.needsUpdate=true})});
+/* 2D panels */
+const ctx=id=>{const c=$(id);return[c.getContext('2d'),c.width,c.height]},css=n=>'#'+n.toString(16).padStart(6,'0');
+const [vx,vw,vh]=ctx('vt'),[px,pw,ph_]=ctx('pv'),[sx,sw,sh_]=ctx('sc'),[cx,cw,ch]=ctx('cp');
+const line=(c,x1,y1,x2,y2,col,w)=>{c.strokeStyle=col;c.lineWidth=w||2;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke()};
+const dot=(c,x,y,r,col)=>{c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill()};
+function drawVT(ph){vx.clearRect(0,0,vw,vh);[[0,'POWER'],[180,'EXH'],[360,'INTAKE'],[540,'COMP']].forEach(([p,t],i)=>{const x=p/720*vw;line(vx,x,0,x,vh,'#e3e6ea',1);vx.fillStyle='#8a93a0';vx.font='16px system-ui';vx.fillText(t,x+4,16)});
+for(const [o,d,col] of[[IV[0],IV[1],'#3aa8ff'],[EV[0],EV[1],'#ff9a3c']]){vx.strokeStyle=col;vx.lineWidth=3;vx.beginPath();for(let p=0;p<=720;p+=6){const x=p/720*vw,y=vh-12-lift(p,o,d)*(vh-40);p?vx.lineTo(x,y):vx.moveTo(x,y)}vx.stroke()}
+line(vx,ph/720*vw,0,ph/720*vw,vh,'#e0262f',2.5)}
+const vt=$('vt');let drag=false;const scrub=e=>{const r=vt.getBoundingClientRect(),ph=Math.max(0,Math.min(719,(e.clientX-r.left)/r.width*720));setRun(false);th=mod(ph+90*CY[track].k,720)};
+vt.onpointerdown=e=>{drag=true;vt.setPointerCapture(e.pointerId);scrub(e)};vt.onpointermove=e=>{if(drag)scrub(e)};vt.onpointerup=()=>drag=false;
+function drawPV(x,p){const pm=Math.max(...curve.map(c=>c[1]))*1.05,X=v=>14+(1-v/M.stroke)*(pw-28),Y=v=>ph_-14-v/pm*(ph_-28);px.clearRect(0,0,pw,ph_);
+line(px,14,6,14,ph_-14,'#9aa3b0',1.5);line(px,14,ph_-14,pw-6,ph_-14,'#9aa3b0',1.5);
+for(let i=1;i<curve.length;i++){px.strokeStyle=css(COLS[Math.floor(curve[i][2]/180)%4]);px.lineWidth=3;px.beginPath();px.moveTo(X(curve[i-1][0]),Y(curve[i-1][1]));px.lineTo(X(curve[i][0]),Y(curve[i][1]));px.stroke()}
+dot(px,X(x),Y(p),7,'#fff');px.strokeStyle='#e0262f';px.lineWidth=3;px.beginPath();px.arc(X(x),Y(p),7,0,7);px.stroke()}
+function drawSC(s){sx.clearRect(0,0,sw,sh_);const k=1.1,cx0=50,cy0=sh_/2,r=M.r*k,L=M.rod*k*.55,a=s.a,pxp=cx0+r*Math.cos(a),pyp=cy0-r*Math.sin(a),xs=cx0+(s.s/M.rod)*L;
+sx.strokeStyle='#9aa3b0';sx.lineWidth=2;sx.beginPath();sx.arc(cx0,cy0,r,0,7);sx.stroke();line(sx,cx0,cy0,pxp,pyp,'#15181d',4);
+line(sx,pxp,pyp,xs,cy0,'#7e8794',4);sx.fillStyle='#e0262f';sx.fillRect(xs,cy0-26,24,52);dot(sx,cx0,cy0,6,'#15181d');dot(sx,pxp,pyp,6,'#fff');
+sx.fillStyle='#6b7482';sx.font='15px system-ui';sx.fillText('r '+(M.r/10).toFixed(1)+' cm · L '+(M.rod/10).toFixed(1)+' cm · stroke '+M.stroke+' mm',8,sh_-8);$('ang').textContent=Math.round(mod(s.ph,360))+'° ATDC'}
+function drawCP(){cx.clearRect(0,0,cw,ch);const X=cw/2-20,Y=ch/2,R_=62;cx.strokeStyle='#cfd4db';cx.lineWidth=2;cx.beginPath();cx.arc(X,Y,R_,0,7);cx.stroke();
+line(cx,X,Y,X+R_*Math.sin(th*D),Y-R_*Math.cos(th*D),'#b4bac4',2);const act=CY[track].zi;
+PINS.forEach((p,i)=>{const x=X+R_*Math.sin(p*D),y=Y-R_*Math.cos(p*D);dot(cx,x,y,i===act?13:9,i===act?'#e0262f':'#15181d');cx.fillStyle='#6b7482';cx.font='15px system-ui';cx.fillText(pairs[i].join('-'),x+(x>X?14:-44),y+5)});dot(cx,X,Y,5,'#15181d')}
+/* frame */
+const rpmEl=$('rpm'),stk=$('stk'),pp=$('pp');let last=performance.now();
+function frame(t){const dt=Math.min(.05,(t-last)/1000);last=t;const rpm=+$('sp').value,N=+$('pb').value;if(run)th=mod(th+rpm*6/N*dt,720);rpmEl.textContent=rpm;
+crank.rotation.z=-th*D;camG.rotation.z=th*D/2;
+for(const c of CY){const s=state(th,c,thr),yp=s.s*U;c.pis.position.y=yp;
+const h=(M.Vc/M.A+s.x)*U;c.gas.scale.set(1,h,1);c.gas.position.y=yp+.4+h/2;
+const si=Math.floor(s.ph/180),burn=s.ph<70?1-s.ph/70:0;c.gm.color.setHex(si===1?0x6b7380:COLS[si]);c.gm.emissive.setHex(COLS[0]);c.gm.emissiveIntensity=burn*1.5;c.gm.opacity=.4+.45*Math.min(1,s.p/60);
+const sp=s.ph>706||s.ph<5;c.plug.material.emissive.setHex(sp?0x66aaff:0);
+[s.iv,s.ev].forEach((lf,i)=>{const w=c.vs[i],L=lf*.1,dl_=L/.3;w.v.position.y=deck-L;w.sp.scale.y=(.7-L)/.7;w.pv.rotation.z=w.sg*dl_;w.pu.position.y=deck-.15+.18*dl_;w.lf.position.y=deck-1.3+.18*dl_});
+const P=[rr*Math.sin(s.psi),rr*Math.cos(s.psi)],Q=[Math.sin(c.beta)*yp,Math.cos(c.beta)*yp],dx=Q[0]-P[0],dy=Q[1]-P[1];
+c.rod.position.set((P[0]+Q[0])/2,(P[1]+Q[1])/2,c.z);c.rod.scale.y=Math.hypot(dx,dy);c.rod.rotation.z=-Math.atan2(dx,dy)}
+const ts=state(th,CY[track],thr),si=Math.floor(ts.ph/180);stk.textContent=NAMES[si];stk.style.color=css(si===1?0x6b7380:COLS[si]);pp.textContent=ts.p.toFixed(1);
+[...chips.children].forEach(b=>{const s=state(th,CY[+b.dataset.n-1],thr);b.style.outline=s.ph<90?'2px solid #e0262f':'none'});
+drawVT(ts.ph);drawPV(ts.x,ts.p);drawSC(ts);drawCP();R.render(scene,cam);requestAnimationFrame(frame)}
+resize();view('hero');requestAnimationFrame(frame);
 </script>
 </body>
 </html>
