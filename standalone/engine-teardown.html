@@ -13,7 +13,7 @@ body{color:var(--fg);font:12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif
 .k{font-size:9px;letter-spacing:.09em;color:var(--mut);text-transform:uppercase;font-weight:600}
 #strip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:6px;right:6px;display:flex;gap:6px;overflow-x:auto;align-items:flex-start}
 #strip.off{display:none}
-.big{font-size:34px;font-weight:800;color:var(--acc);lineline-height:1;font-variant-numeric:tabular-nums}
+.big{font-size:34px;font-weight:800;color:var(--acc);line-height:1;font-variant-numeric:tabular-nums}
 canvas.p{width:170px;height:92px;display:block;margin-top:3px}
 #chips{display:grid;grid-template-columns:repeat(8,22px);gap:3px;margin-top:4px}
 #chips button{padding:3px 0;border-radius:50%;height:22px;font-size:11px}
@@ -55,7 +55,7 @@ const M={bore:92.5,stroke:92.9,rod:150,cr:10.5};
 M.r=M.stroke/2;M.A=Math.PI/4*M.bore**2;M.Vd=M.A*M.stroke;M.Vc=M.Vd/(M.cr-1);
 const ORDER=[1,8,4,3,6,5,7,2],PINS=[45,225,135,315],ZS=[-1.875,-.625,.625,1.875];
 const CY=[];for(let n=1;n<=8;n++){const k=ORDER.indexOf(n),beta=(n%2?45:-45)*D,pin=beta-90*k*D,pd=Math.round(mod(pin/D,360)),zi=PINS.indexOf(pd);
-hCY.push({n,k,beta,pin,zi,z:ZS[zi]+(n%2?.14:-.14)});}
+CY.push({n,k,beta,pin,zi,z:ZS[zi]+(n%2?.14:-.14)});}
 const xOf=a=>M.rod+M.r-(M.r*Math.cos(a)+Math.sqrt(M.rod**2-(M.r*Math.sin(a))**2));
 const phase=(th,c)=>mod(th-90*c.k,720);
 function pOf(ph,x,thr){const pm=.3+.7*thr,lam=1+3.3*(.4+.6*thr),V=M.Vc+M.A*x;
