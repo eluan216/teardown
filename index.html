@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teardown — Free Offline Simulators</title>
+  <title>Teardown — Free 3D Simulators</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', system-ui, sans-serif;
@@ -46,6 +45,7 @@
       transition: box-shadow 0.15s, transform 0.15s;
       display: block;
     }
+    a.card:focus-visible { outline: 3px solid #e11d48; outline-offset: 4px; }
     a.card:hover {
       box-shadow: 0 8px 24px rgba(0,0,0,0.08);
       transform: translateY(-2px);
@@ -81,13 +81,13 @@
 </head>
 <body>
   <h1><span>Teardown</span> Free Simulators</h1>
-  <p class="sub">Interactive 3D machines you can take apart — no install, runs offline</p>
+  <p class="sub">Interactive 3D machines you can take apart — no install · internet required for 3D libraries</p>
 
   <div class="grid">
     <a class="card" href="standalone/engine-teardown.html">
       <div class="badge">Updated</div>
-      <h2>Single-Cylinder Engine</h2>
-      <p>4-stroke slider-crank with live gauges, cutaway, explode view and valve timing chart.</p>
+      <h2>Cross-Plane V8 Engine</h2>
+      <p>Eight-cylinder four-stroke engine with live gauges, cutaway, exploded view and valve timing chart.</p>
     </a>
 
     <a class="card" href="standalone/derailleur-teardown.html">
@@ -103,6 +103,6 @@
     </a>
   </div>
 
-  <footer>Free · Offline · Open source</footer>
+  <footer>Free · Open source · Download the HTML files to open locally</footer>
 </body>
 </html>

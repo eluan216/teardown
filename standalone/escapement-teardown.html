@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mechanical Watch Escapement — Free Offline Simulator</title>
+<title>Mechanical Watch Escapement — Free 3D Simulator</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
     --bg: #0c0e12; --panel: #14181f; --border: #252b36; --text: #e8ecf1;
     --muted: #8b95a5; --accent: #f59e0b; --accent-dim: #78350f;
@@ -54,10 +53,28 @@
   .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
   .status.idle .dot { background: var(--warn); }
   .help { position: absolute; bottom: 20px; right: 16px; font-size: 11px; color: var(--muted); z-index: 15; text-align: right; line-height: 1.5; }
+
+  button:focus-visible, input:focus-visible, .panel:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+  }
+  input[type=range] { min-height: 24px; }
+  .panel { max-height: calc(100dvh - 150px); overflow-y: auto; }
   @media (max-width: 700px) {
-    .left-panel, .right-panel { width: 170px; padding: 12px; }
-    .gauge-value { font-size: 18px; }
+    .topbar { padding: 0 12px; }
+    .brand { flex-wrap: wrap; gap: 4px 8px; font-size: 13px; }
+    .brand span { display: none; }
+    .left-panel, .right-panel {
+      top: auto; bottom: 58px; width: calc(50% - 18px);
+      max-height: 42vh; max-height: 42dvh; padding: 10px;
+      overscroll-behavior: contain;
+    }
+    .left-panel { left: 12px; }
+    .right-panel { right: 12px; }
     .btn-grid { grid-template-columns: 1fr; }
+    button { min-height: 44px; padding: 8px; }
+    .gauge { padding: 8px; }
+    .status { bottom: 12px; width: max-content; max-width: calc(100% - 24px); }
+    .help { display: none; }
   }
 </style>
 </head>
@@ -67,10 +84,10 @@
     <div class="brand">
       Escapement Teardown
       <span>Swiss Lever · 4 Hz</span>
-      <div class="badge">FREE · OFFLINE</div>
+      <div class="badge">FREE · 3D</div>
     </div>
   </div>
-  <div class="panel left-panel">
+  <div class="panel left-panel" role="region" aria-label="Simulator controls" tabindex="0">
     <h3>Controls</h3>
     <div class="btn-grid">
       <button id="btn-run" class="active">Running</button>
@@ -79,15 +96,15 @@
       <button id="btn-reset">Reset Cam</button>
     </div>
     <div class="slider-row">
-      <label>Beat Rate <span id="rate-val">4.00 Hz</span></label>
+      <label for="rate">Beat Rate <span id="rate-val">4.00 Hz</span></label>
       <input type="range" id="rate" min="200" max="600" value="400" step="10">
     </div>
     <div class="slider-row">
-      <label>Amplitude <span id="amp-val">270°</span></label>
+      <label for="amp">Amplitude <span id="amp-val">270°</span></label>
       <input type="range" id="amp" min="120" max="320" value="270" step="5">
     </div>
   </div>
-  <div class="panel right-panel">
+  <div class="panel right-panel" role="region" aria-label="Live data" tabindex="0">
     <h3>Live Data</h3>
     <div class="gauge">
       <div class="gauge-label">Balance Angle</div>
@@ -131,8 +148,8 @@ const state = {
   running: true,
   slowMo: false,
   exploded: false,
-  frequency: 4.0,       // Hz (half-cycles per second → 4 Hz = 28800 bph)
-  amplitude: 270 * Math.PI / 180, // rad peak-to-peak / 2
+  frequency: 4.0,       // Full oscillations per second; two beats per oscillation.
+  amplitude: 270 * Math.PI / 180, // Peak angular displacement from rest, in radians.
   t: 0,
   lastTime: performance.now(),
   idleTimer: 0,
@@ -448,7 +465,7 @@ rateSlider.addEventListener('input', () => {
   resetIdle();
 });
 ampSlider.addEventListener('input', () => {
-  state.amplitude = (+ampSlider.value * Math.PI / 180) / 2;
+  state.amplitude = +ampSlider.value * Math.PI / 180;
   document.getElementById('amp-val').textContent = ampSlider.value + '°';
   resetIdle();
 });
