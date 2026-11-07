@@ -2,28 +2,37 @@
 
 A Claude Code skill that turns any machine into a 3D simulator you can take apart.
 
-**Also includes free, fully offline standalone simulators** that run in any browser with zero install.
+**Also includes free standalone browser simulators** with no local installation. These pages load Three.js from a CDN and require an internet connection.
 
 ---
 
-## Free Standalone Simulators (No Claude Code)
+## Free Browser Simulators (No Claude Code)
 
-Open any of these files directly in your browser (click Raw, or download):
+Download one of these HTML files and open it in a WebGL-capable browser while connected to the internet. GitHub's file preview and Raw view show source code; they do not run the simulator.
 
 | Simulator | File | What it shows |
 |-----------|------|---------------|
-| **Single-Cylinder Engine** | [engine-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/engine-teardown.html) | 4-stroke slider-crank, pressure gauge, cutaway, explode |
+| **Cross-Plane V8 Engine** | [engine-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/engine-teardown.html) | Eight-cylinder four-stroke engine, live charts, cutaway and exploded views |
 | **Bicycle Derailleur** | [derailleur-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/derailleur-teardown.html) | 11-speed cassette, parallelogram, jockey wheels, shifting |
 | **Watch Escapement** | [escapement-teardown.html](https://github.com/eluan216/teardown/blob/main/standalone/escapement-teardown.html) | Swiss lever, balance wheel, hairspring, impulse phases |
 
 All three share the same features:
-- Live gauges driven by the real kinematics
+- Live gauges driven by each simulator's model (the standalone watch and derailleur use simplified illustrative mechanisms)
 - Exploded / assembled views
 - Orbit + zoom controls
 - Auto-tour after a few seconds of inactivity
-- Pure HTML + Three.js — works offline after the first CDN load
+- HTML + Three.js — the standalone sources require CDN access; browser caching does not guarantee offline operation
 
-No build step, no Node, no Claude required.
+No build step, no Node, no Claude required for these browser pages.
+
+For fully self-contained offline HTML with Three.js and fonts embedded, use the bundled examples instead:
+
+```sh
+npm ci
+node sims/build.mjs v8-live cessna-live strandbeest-live
+```
+
+Open the generated HTML files in `teardown-out/dist/`. These are separate examples from the standalone pages above.
 
 ---
 
@@ -79,7 +88,7 @@ node sims/build.mjs strandbeest-live
 | `sims/build.mjs` | Bundles a machine into one HTML file, three.js and fonts inlined. |
 | `sims/capture.mjs` | Renders the film frame by frame to a 60 fps mp4, or to review sheets of stills. |
 | `sfx/`, `run_sfx.py` | Procedural sound on the film's timeline, mastered to −14 LUFS. |
-| `standalone/` | **Free offline simulators** that need nothing but a browser. |
+| `standalone/` | **Free browser simulators** that load Three.js from a CDN. |
 
 ## Credits
 
